@@ -1,0 +1,3528 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Renan em Missão: Corrida do Livro Amarelo</title>
+  
+  <!-- Basecoat CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@1.0.2/dist/basecoat.cdn.min.css">
+  
+  <!-- Shell System -->
+  <style>
+/* Skip artifact shell — fixed styles served beside every artifact.
+   Complements basecoat; artifacts override --accent for their own identity. */
+:root {
+  color-scheme: light dark;
+  --accent: #2563eb;
+  --accent-contrast: #ffffff;
+  --accent-text: color-mix(in srgb, var(--accent) 72%, #000);
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --text: #14171f;
+  --text-muted: #5b6472;
+  --border: rgba(20, 23, 31, 0.10);
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(20, 23, 31, 0.08);
+  --space: 16px;
+}
+/* Theme resolution. Without data-theme the viewer's system preference decides,
+   as it always did. With it, the artifact's own choice wins in BOTH directions:
+   a page that hardcodes one palette must not be handed the opposite set of
+   tokens by the machine it happens to be opened on. The dark values appear
+   twice because a media query cannot be folded into a selector list.
+   The attribute sits inside :where() so these blocks keep the specificity of a
+   bare :root — the page's own <style> is linked after this file and must go on
+   overriding any token it wants, exactly as it could before. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --accent-text: color-mix(in srgb, var(--accent) 78%, #fff);
+    --bg: #101318;
+    --surface: #181c23;
+    --text: #eef1f6;
+    --text-muted: #9aa4b2;
+    --border: rgba(238, 241, 246, 0.12);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+:root:where([data-theme="dark"]) {
+  color-scheme: dark;
+  --accent-text: color-mix(in srgb, var(--accent) 78%, #fff);
+  --bg: #101318;
+  --surface: #181c23;
+  --text: #eef1f6;
+  --text-muted: #9aa4b2;
+  --border: rgba(238, 241, 246, 0.12);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+:root:where([data-theme="light"]) { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+
+.shell-container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+.shell-section { padding: calc(var(--space) * 2) 0; }
+.shell-grid { display: grid; gap: var(--space); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.shell-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: var(--space); }
+.shell-footer { padding: 24px 0 40px; color: var(--text-muted); font-size: 13px; }
+
+.shell-hero { padding: calc(var(--space) * 3) 0 calc(var(--space) * 2); }
+.shell-hero h1 { font-size: clamp(26px, 4vw, 40px); line-height: 1.15; margin: 0 0 10px; text-wrap: balance; }
+.shell-hero p { color: var(--text-muted); max-width: 60ch; margin: 0; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space);
+}
+
+.kpi { display: flex; flex-direction: column; gap: 4px; }
+.kpi .kpi-value { font-size: 28px; font-weight: 650; line-height: 1.1; }
+.kpi .kpi-label { font-size: 13px; color: var(--text-muted); }
+.kpi .kpi-delta { font-size: 12.5px; font-weight: 600; }
+.kpi .kpi-delta.up { color: #0a8f3c; }
+.kpi .kpi-delta.down { color: #cf3131; }
+
+table.shell-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.shell-table th {
+  text-align: left; font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 600;
+}
+table.shell-table th, table.shell-table td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border); }
+table.shell-table td.num, table.shell-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+
+.chart-box { width: 100%; min-height: 220px; }
+.chart-box svg { width: 100%; height: auto; display: block; }
+
+.muted { color: var(--text-muted); }
+.accent { color: var(--accent-text); }
+.shell-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell-fade { animation: shell-fade 400ms ease both; }
+  @keyframes shell-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+
+</style>
+  
+
+  <style>
+    :root {
+      --accent: #ffd400;
+      --accent-contrast: #0b1528;
+      --bg-studio: #0b1324;
+      --studio-blue: #0f1f3d;
+      --pulpit-wood: #263859;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-studio);
+      color: #f0f4fc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      touch-action: manipulation;
+    }
+
+    /* Game Container: Mobile-first portrait framing */
+    #game-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 460px;
+      height: 100vh;
+      height: 100dvh;
+      max-height: 860px;
+      background: #0f1f3d;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+      border-radius: 0;
+    }
+
+    @media (min-width: 500px) and (min-height: 700px) {
+      #game-wrapper {
+        border-radius: 16px;
+        height: 92vh;
+        border: 2px solid rgba(255, 212, 0, 0.25);
+      }
+    }
+
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Overlays & UI */
+    .game-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 20px 32px;
+      background: rgba(10, 18, 36, 0.88);
+      backdrop-filter: blur(6px);
+      z-index: 20;
+      text-align: center;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    .game-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Start Screen */
+    .start-badge {
+      display: inline-block;
+      background: rgba(255, 212, 0, 0.15);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+    }
+
+    .start-title {
+      font-size: 2.2rem;
+      line-height: 1.1;
+      font-weight: 900;
+      margin: 0 0 8px;
+      color: #ffffff;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    .start-title span {
+      color: var(--accent);
+    }
+
+    .start-tagline {
+      font-size: 0.92rem;
+      color: #9ab0d3;
+      margin: 0;
+      line-height: 1.35;
+      max-width: 320px;
+    }
+
+    /* Arte Conceitual Oficial do Renan */
+    .start-art-container {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 8px 0;
+    }
+
+    .start-art-glow {
+      position: absolute;
+      inset: -12px;
+      background: radial-gradient(ellipse at 50% 50%, rgba(255, 212, 0, 0.32) 0%, rgba(15, 31, 61, 0.5) 55%, transparent 75%);
+      filter: blur(14px);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .start-art-img {
+      position: relative;
+      z-index: 2;
+      width: auto;
+      max-width: 80%;
+      max-height: 37vh;
+      object-fit: contain;
+      border-radius: 14px;
+      border: 1.5px solid rgba(255, 212, 0, 0.4);
+      box-shadow: 0 0 28px rgba(255, 212, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.7);
+      background-color: #0b1528;
+      display: block;
+    }
+
+    .start-footer-links {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .start-footer-link {
+      font-size: 0.72rem;
+      color: #6c84a8;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .start-footer-link:hover {
+      color: #ffd400;
+      text-decoration: underline;
+    }
+
+    .btn-play-large {
+      width: 100%;
+      max-width: 340px;
+      padding: 18px 24px;
+      font-size: 1.35rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #0b1528;
+      background: #ffd400;
+      border: none;
+      border-radius: 14px;
+      box-shadow: 0 6px 0 #c7a400, 0 12px 24px rgba(255, 212, 0, 0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+
+    .btn-play-large:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #c7a400, 0 4px 12px rgba(255, 212, 0, 0.2);
+    }
+
+    .start-tip {
+      font-size: 0.78rem;
+      color: #7b8fae;
+      margin-top: 10px;
+    }
+
+    .error-notice {
+      display: none;
+      color: #ffd400;
+      background: rgba(255, 212, 0, 0.12);
+      border: 1px solid rgba(255, 212, 0, 0.35);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      margin-top: 8px;
+      max-width: 330px;
+      line-height: 1.3;
+      text-align: center;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spin {
+      animation: spin 0.85s linear infinite;
+    }
+
+    /* HUD Bar Principal e Status */
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .hud-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-status-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .hud-chip {
+      background: rgba(11, 21, 40, 0.92);
+      border: 1.5px solid rgba(255, 212, 0, 0.45);
+      border-radius: 10px;
+      padding: 5px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+
+    .hud-chip.compact {
+      padding: 4px 8px;
+    }
+
+    .hud-label {
+      font-size: 0.72rem;
+      color: #a5bada;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+    }
+
+    .hud-value {
+      font-size: 1.05rem;
+      font-weight: 900;
+      color: #ffd400;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hud-badge {
+      font-size: 0.74rem;
+      font-weight: 900;
+      padding: 4px 10px;
+      border-radius: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    }
+
+    .hud-badge.mult {
+      background: #ffd400;
+      color: #0b1528;
+      box-shadow: 0 0 10px rgba(255, 212, 0, 0.5);
+    }
+
+    .hud-badge.perk {
+      background: rgba(46, 204, 113, 0.25);
+      color: #2ecc71;
+      border: 1px solid #2ecc71;
+    }
+
+    .hud-badge.squad {
+      background: rgba(231, 76, 60, 0.25);
+      color: #ff7676;
+      border: 1px solid #ff7676;
+    }
+
+    /* Quick Action HUD (sound toggle) */
+    .hud-btn {
+      pointer-events: auto;
+      background: rgba(11, 21, 40, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* Game Over Modal / Cards */
+    .gameover-card {
+      background: #111d33;
+      border: 1px solid rgba(255, 212, 0, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 340px;
+      margin: auto 0;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+    }
+
+    .rank-highlight-box {
+      background: rgba(9, 18, 34, 0.85);
+      border: 1.5px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .rank-highlight-box.gold-tier {
+      border-color: #ffd400;
+      background: linear-gradient(135deg, rgba(255, 212, 0, 0.18) 0%, rgba(15, 31, 61, 0.95) 100%);
+      box-shadow: 0 0 18px rgba(255, 212, 0, 0.28);
+    }
+
+    .rank-tag {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-weight: 700;
+      color: #8da4c4;
+      margin-bottom: 3px;
+    }
+
+    .rank-title {
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: #e2e8f0;
+      line-height: 1.2;
+    }
+
+    .rank-title.gold-tier {
+      font-size: 1.35rem;
+      color: #ffd400;
+      text-shadow: 0 0 12px rgba(255, 212, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0 16px;
+    }
+
+    .stat-item {
+      background: #091222;
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #ffd400;
+      line-height: 1.1;
+    }
+
+    .stat-lbl {
+      font-size: 0.68rem;
+      color: #8da4c4;
+      text-transform: uppercase;
+      margin-top: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .actions-stack {
+      width: 100%;
+      max-width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn-secondary-action {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f0f4fc;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s;
+    }
+
+    .btn-secondary-action:active {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .share-toast {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffd400;
+      color: #0b1528;
+      font-weight: 800;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 50;
+    }
+
+    .share-toast.show {
+      opacity: 1;
+      transform: translate(-50%, 6px);
+    }
+
+    .official-link {
+      font-size: 0.72rem;
+      color: #6c84a8;
+      text-decoration: underline;
+      display: inline-block;
+      margin-top: 6px;
+      cursor: pointer;
+    }
+
+    /* Controls touch prompt helper */
+    .controls-hint {
+      position: absolute;
+      bottom: 12px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-wrapper">
+    <!-- Canvas for 60fps rendering -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- In-Game HUD Expandido com Patente, Algemas e Multiplicador -->
+    <div id="hud">
+      <div class="hud-top-row">
+        <div class="hud-chip">
+          <span class="hud-label">Fraldas</span>
+          <span class="hud-value" id="hud-diapers">0</span>
+        </div>
+        <div class="hud-chip">
+          <span class="hud-label">Pts</span>
+          <span class="hud-value" id="hud-score">0</span>
+        </div>
+        <div class="hud-chip compact">
+          <span class="hud-label">Algemas</span>
+          <span class="hud-value" id="hud-handcuffs">0</span>
+        </div>
+        <button class="hud-btn" id="sound-btn" aria-label="Som">
+          <svg id="sound-icon-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+          <svg id="sound-icon-off" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="hud-status-row">
+        <div class="hud-chip compact" style="border-color: rgba(255,255,255,0.25);">
+          <span class="hud-label" style="color:#ffd400;">Patente:</span>
+          <span class="hud-value" id="hud-rank" style="font-size:0.72rem; color:#fff;">Recruta</span>
+        </div>
+        <div class="hud-badge mult" id="hud-mult" style="display:none;">x1</div>
+        <div class="hud-badge perk" id="hud-perk-active" style="display:none;">INVENCÍVEL</div>
+        <div class="hud-badge squad" id="hud-squad" style="display:none;">PRESOS: 0/3</div>
+      </div>
+    </div>
+
+    <div class="controls-hint" id="controls-hint">
+      Toque: pular | Segurar: alto | Toque no ar: descer rápido
+    </div>
+
+    <!-- Start Screen Overlay -->
+    <div class="game-overlay" id="overlay-start">
+      <div>
+        <div class="start-badge">Missão Oficial</div>
+        <h1 class="start-title">RENAN EM<br><span>MISSÃO</span></h1>
+        <p class="start-tagline">Pule e deixe as fraldas nos púlpitos vazios do debate!</p>
+      </div>
+
+      <!-- Arte Conceitual Oficial com Glow Dourado Imperial -->
+      <div class="start-art-container">
+        <div class="start-art-glow"></div>
+        <img class="start-art-img" 
+             src="https://generated-images.adapta.one/ssalomao13%40gmail.com/01a087b4-4f42-753e-8ad2-1d897fb7eab2/2026-09-09T22-59-13-810Z_Original_user_intent_Tool_generated_image_directi.png" 
+             alt="Renan em Missão — Arte Conceitual Oficial"
+             onerror="this.style.display='none'; const fb = document.getElementById('start-art-fallback'); if(fb) fb.style.display='flex';">
+        <div id="start-art-fallback" style="display:none; position:relative; z-index:2; height:180px; width:100%; border:1.5px solid rgba(255,212,0,0.4); border-radius:14px; background:#0b1528; align-items:center; justify-content:center; flex-direction:column; padding:16px;">
+          <div style="color:#ffd400; font-size:1.4rem; font-weight:900; letter-spacing:1px;">RENAN EM MISSÃO</div>
+          <div style="color:#9ab0d3; font-size:0.85rem; margin-top:6px;">Debate Sem Fujões</div>
+        </div>
+      </div>
+
+      <div style="width:100%; display:flex; flex-direction:column; align-items:center;">
+        <button class="btn-play-large" id="btn-play">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          JOGAR
+        </button>
+        <div class="start-tip" id="start-tip-text">Toque ou Espaço para pular</div>
+        <div class="error-notice" id="error-notice"></div>
+        <div class="start-footer-links">
+          <a href="#" class="start-footer-link" onclick="event.preventDefault(); alert('Missão Oficial: jogo satírico de plataforma com patente e recordes.');">Sobre</a>
+          <span style="color:#3c5378; font-size:0.7rem;">•</span>
+          <a href="#" class="start-footer-link" onclick="event.preventDefault(); alert('Privacidade: Nenhum dado pessoal é coletado. Recordes salvos apenas no navegador local.');">Privacidade</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Screen Overlay -->
+    <div class="game-overlay hidden" id="overlay-gameover">
+      <div style="margin-top:10px;">
+        <div class="start-badge" style="border-color:#ff5e5e; color:#ff7676; background:rgba(255,94,94,0.15)">DEBATE ENCERRADO</div>
+        <h2 id="go-time-label" style="font-size:1.6rem; margin:8px 0 0; color:#fff; font-weight:900;">Sobreviveu por 0.0s</h2>
+      </div>
+
+      <div class="gameover-card">
+        <div class="rank-highlight-box" id="go-rank-box">
+          <div class="rank-tag">Patente Alcançada</div>
+          <div class="rank-title" id="go-rank-title">Recruta da Missão</div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-val" id="go-score">0</div>
+            <div class="stat-lbl">Pontos</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" id="go-diapers">0</div>
+            <div class="stat-lbl">Fraldas Postas</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" id="go-obstacles">0</div>
+            <div class="stat-lbl">Obstáculos</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" id="go-record">0</div>
+            <div class="stat-lbl">Recorde Pessoal</div>
+          </div>
+        </div>
+        <div style="font-size:0.75rem; color:#8da4c4; text-align:center;">
+          "Candidato fujão ganha fralda!"
+        </div>
+      </div>
+
+      <div class="actions-stack">
+        <button class="btn-play-large" id="btn-replay">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+          </svg>
+          JOGAR DE NOVO
+        </button>
+
+        <button class="btn-secondary-action" id="btn-share">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+          COMPARTILHAR
+        </button>
+
+        <button class="btn-secondary-action" id="btn-save-image" style="background: rgba(255, 212, 0, 0.12); border-color: rgba(255, 212, 0, 0.35); color: #ffd400;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Baixar Card de Recorde (PNG)
+        </button>
+
+        <a href="#" class="official-link" onclick="event.preventDefault(); alert('Apoie pelos canais oficiais: Missão do Livro Amarelo.');">
+          APOIE PELOS CANAIS OFICIAIS
+        </a>
+      </div>
+    </div>
+
+    <!-- Notification Toast for Copy -->
+    <div class="share-toast" id="share-toast">Copiado para a área de transferência!</div>
+  </div>
+
+  <script>
+    /**
+     * RENAN EM MISSÃO — PROTÓTIPO PLATAFORMA
+     * Loop Core: Corrida contínua, pulo variável, fast-fall e colocação de fraldas em púlpitos vazios.
+     */
+
+    // --- ÁUDIO (Web Audio API Synthesizer) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playJump(isHigh = false) {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(isHigh ? 240 : 180, now);
+        osc.frequency.exponentialRampToValueAtTime(isHigh ? 620 : 440, now + 0.16);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.16);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      }
+
+      playDive() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(380, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.14);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.14);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.14);
+      }
+
+      playDiaperPlaced() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Two-tone fanfare
+        [440, 660, 880].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          const t = now + idx * 0.06;
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.25, t);
+          gain.gain.linearRampToValueAtTime(0.01, t + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.12);
+        });
+      }
+
+      playObstaclePass() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, now);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+
+      playHit() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.linearRampToValueAtTime(40, now + 0.3);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      }
+    }
+
+    const audio = new SoundEngine();
+
+    // PERSONAGEM 100% PROCEDURAL EM CANVAS:
+    // Zero downloads de sprites externos, zero dependência de rede, zero bloqueio de CORS.
+    // Performance nativa fluida a 60 FPS no mobile e transparência garantida por vetorização direta.
+
+    // --- GAME ENGINE & CONFIG ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Resolução lógica de jogo (coordenadas virtuais fixas para física consistente)
+    const V_WIDTH = 420;
+    const V_HEIGHT = 700;
+    const GROUND_Y = 560;
+
+    // Estado do jogo
+    const STATE = {
+      MENU: 0,
+      PLAYING: 1,
+      GAMEOVER: 2
+    };
+
+    let gameState = STATE.MENU;
+    let highscore = parseInt(localStorage.getItem('renan_mission_best') || '0', 10);
+    let lastFinalScore = 0;
+    let lastGameTime = 0;
+
+    // --- SISTEMA OFICIAL DE PATENTES (6 NÍVEIS) ---
+    const RANK_TIERS = [
+      { min: 5500, title: "Alexandre, O Grande", isGold: true },
+      { min: 3500, title: "General da Missão", isGold: true },
+      { min: 2000, title: "Coronel da Missão", isGold: true },
+      { min: 1000, title: "Capitão da Missão", isGold: false },
+      { min: 400,  title: "Soldado da Missão", isGold: false },
+      { min: 0,    title: "Recruta da Missão", isGold: false }
+    ];
+
+    let currentRankTier = RANK_TIERS[RANK_TIERS.length - 1];
+
+    function getRankByScore(scoreVal) {
+      for (const tier of RANK_TIERS) {
+        if (scoreVal >= tier.min) {
+          return tier;
+        }
+      }
+      return RANK_TIERS[RANK_TIERS.length - 1];
+    }
+
+    // --- SISTEMA DE BANNER NO TOPO DO CANVAS (LEGIBILIDADE MÁXIMA) ---
+    // Substitui balões pequenos: retângulo arredondado #0f1f3dcc com texto amarelo #ffd400 e contorno preto
+    let activeBanner = null;
+
+    function mostrarBanner(texto, tipo = "info", icone = "⚠️") {
+      activeBanner = {
+        texto,
+        tipo,
+        icone,
+        duration: 2.8,
+        timer: 2.8
+      };
+    }
+
+    // Variáveis da Partida e Ritmo Balanceado
+    // Velocidade em pixels virtuais por segundo: começa em 230 px/s e rampa até 600 px/s ao longo de ~90s
+    const INITIAL_SPEED_PX = 230;
+    const MAX_SPEED_PX = 600;
+    let currentSpeedPx = INITIAL_SPEED_PX;
+    let freezeTimer = 0;
+
+    let score = 0;
+    let diapersPlaced = 0;
+    let obstaclesCleared = 0;
+    let handcuffs = 0;
+    let gameTime = 0;
+    let distanceCovered = 0;
+    let cameraShake = 0;
+
+    // Temporizador para controle fino de spawn
+    let spawnCooldown = 3.8; // Primeiro obstáculo só após ~3.8s de jogo
+    let perkCooldown = 8.0;  // Primeiro perk em ~8s
+
+    // Multiplicadores e Perks Ativos
+    let cardMultiplierTimer = 0;    // Carta Valete x2
+    let flagComboCount = 0;         // Combo Bandeira Clássica
+    let imperialModeTimer = 0;      // Bandeira Imperial x3 + invencibilidade
+    let bookInvincibleTimer = 0;    // Livro Amarelo invencibilidade
+    let oncaRidingTimer = 0;        // Onça Pintada invencível + atropelamento
+    let hasShield = false;          // Broche R14 absorve 1 colisão
+    let hasSwordStrike = false;     // Espadim de Tiradentes (one-shot próximo obstáculo)
+
+    // Minichefia Ladrão de Celular (sequência de 3 ladrões)
+    let thiefSquadActive = false;
+    let thiefSquadCount = 0;
+    let thiefSquadCaught = 0;
+
+    // Prisioneiros capturados (MC e Ladrões) para dinâmica da Militante
+    let prisonersHeld = 0;
+
+    // Listas do Mundo
+    let pulpits = [];
+    let obstacles = [];
+    let collectibles = [];
+    let particles = [];
+    let floatingTexts = [];
+
+    // Adversários exclusivos (apenas LULA e FLÁVIO alternados nos púlpitos)
+    const CANDIDATE_INSULTS = {
+      "LULA": "LULA LADRÃO",
+      "FLÁVIO": "FLÁVIO CAGÃO"
+    };
+    const CANDIDATE_LIST = ["LULA", "FLÁVIO"];
+    let nextCandidateIndex = 0;
+
+    // --- SISTEMA DE CARREGAMENTO EM 3 CAMADAS + CHROMA-KEY (#00FF00) + FALLBACK PROCEDURAL ---
+    const ART_BASE = "https://generated-images.adapta.one/ssalomao13%40gmail.com/01a087b4-4f42-753e-8ad2-1d897fb7eab2/";
+    
+    const SPRITE_URLS = {
+      // Sprites Oficiais do Renan
+      run1: ART_BASE + "2026-09-10T18-19-22-461Z_Original_user_intent_Tool_generated_image_directi.png",
+      run2: ART_BASE + "2026-09-10T18-19-20-033Z_Original_user_intent_Tool_generated_image_directi.png",
+      run3: ART_BASE + "2026-09-10T18-19-22-352Z_Original_user_intent_Tool_generated_image_directi.png",
+      jump: ART_BASE + "2026-09-10T18-19-20-659Z_Original_user_intent_Tool_generated_image_directi.png",
+
+      // Obstáculos Integrados
+      jornalista: ART_BASE + "2026-09-10T23-09-18-236Z_Original_user_intent_Brazilian_political_cartoon.png",
+      exmbl: ART_BASE + "2026-09-10T23-09-57-119Z_Original_user_intent_Brazilian_political_cartoon.png",
+      mc: ART_BASE + "2026-09-10T23-16-18-586Z_Original_user_intent_Tool_generated_image_directi.png",
+      ladrao: ART_BASE + "2026-09-10T23-11-16-242Z_Original_user_intent_Brazilian_political_cartoon.png",
+      militante: ART_BASE + "2026-09-10T23-12-05-327Z_Original_user_intent_Brazilian_political_cartoon.png",
+      drone: ART_BASE + "2026-09-10T23-18-44-967Z_Original_user_intent_Brazilian_political_cartoon.png",
+      toga: ART_BASE + "2026-09-10T23-21-11-067Z_Original_user_intent_Tool_generated_image_directi.png",
+
+      // Perks & Coletáveis
+      onca: ART_BASE + "2026-09-10T23-21-57-341Z_Original_user_intent_Brazilian_political_cartoon.png",
+      espadim: ART_BASE + "2026-09-10T23-27-08-718Z_Original_user_intent_Tool_generated_image_directi.png",
+      valete: ART_BASE + "2026-09-10T23-29-44-841Z_Original_user_intent_Tool_generated_image_directi.png",
+      livro: ART_BASE + "2026-09-10T23-32-50-882Z_Original_user_intent_Tool_generated_image_directi.png",
+      broche: ART_BASE + "2026-09-10T23-38-09-929Z_Original_user_intent_Tool_generated_image_directi.png",
+      classica: ART_BASE + "2026-09-10T23-42-12-355Z_Original_user_intent_Tool_generated_image_directi.png",
+      imperial: ART_BASE + "2026-09-10T23-42-51-394Z_Original_user_intent_Tool_generated_image_directi.png"
+    };
+
+    const loadedSprites = {};
+
+    function applyChromaKeyToSource(sourceImg) {
+      try {
+        const w = sourceImg.width || sourceImg.naturalWidth;
+        const h = sourceImg.height || sourceImg.naturalHeight;
+        if (!w || !h) return null;
+
+        const off = document.createElement('canvas');
+        off.width = w;
+        off.height = h;
+        const oCtx = off.getContext('2d', { willReadFrequently: true });
+        if (!oCtx) return null;
+
+        oCtx.drawImage(sourceImg, 0, 0);
+        const imgData = oCtx.getImageData(0, 0, w, h);
+        const d = imgData.data;
+
+        // Regra solicitada: pixel g>120 && g>r+60 && g>b+60 -> alpha=0; borda g>r+30 && g>b+30 -> alpha*=0.4
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i];
+          const g = d[i + 1];
+          const b = d[i + 2];
+
+          if (g > 120 && g > r + 60 && g > b + 60) {
+            d[i + 3] = 0;
+          } else if (g > r + 30 && g > b + 30) {
+            d[i + 3] = Math.floor(d[i + 3] * 0.4);
+          }
+        }
+
+        oCtx.putImageData(imgData, 0, 0);
+        return off;
+      } catch (err) {
+        // NUNCA desenhar imagem crua com fundo verde; retorna null para ativar o fallback procedural bonito
+        return null;
+      }
+    }
+
+    // Carregamento resiliente em 3 camadas por sprite:
+    // a) fetch(mode: 'cors') -> blob -> createImageBitmap (nunca suja canvas)
+    // b) new Image com crossOrigin='anonymous' -> chroma-key
+    // c) onerror / falha -> fallback procedural
+    async function loadSingleSprite(key, url) {
+      // Camada a: fetch -> blob -> createImageBitmap
+      try {
+        if (typeof window.fetch === 'function' && typeof window.createImageBitmap === 'function') {
+          const resp = await fetch(url, { mode: 'cors' });
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const bitmap = await createImageBitmap(blob);
+            const processed = applyChromaKeyToSource(bitmap);
+            if (processed) {
+              loadedSprites[key] = processed;
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        // Ignora e segue para a camada b
+      }
+
+      // Camada b: new Image com crossOrigin
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const processed = applyChromaKeyToSource(img);
+          loadedSprites[key] = processed || null;
+        };
+        img.onerror = () => {
+          loadedSprites[key] = null; // Camada c: fallback procedural
+        };
+        img.src = url;
+      } catch (err) {
+        loadedSprites[key] = null;
+      }
+    }
+
+    function loadSprites() {
+      Object.keys(SPRITE_URLS).forEach(k => {
+        loadSingleSprite(k, SPRITE_URLS[k]);
+      });
+    }
+
+    loadSprites();
+
+    // --- PERSONAGEM RENAN (POSICIONADO A 36% DA TELA PARA VISÃO LIVRE À FRENTE) ---
+    const RENAN_X_RATIO = 0.36; // 36% da largura virtual do canvas (~151px de 420px)
+
+    const renan = {
+      x: Math.round(V_WIDTH * RENAN_X_RATIO),
+      y: GROUND_Y - 84,
+      w: 42,              // Hitbox balanceada
+      h: 84,              // Altura proporcional (~84-90px)
+      vy: 0,
+      gravity: 0.65,
+      jumpForce: -11.6,
+      isGrounded: true,
+      isFastFalling: false,
+      animTimer: 0,
+      currentPlatform: null,
+
+      reset() {
+        this.x = Math.round(V_WIDTH * RENAN_X_RATIO);
+        this.y = GROUND_Y - this.h;
+        this.vy = 0;
+        this.isGrounded = true;
+        this.isFastFalling = false;
+        this.animTimer = 0;
+        this.currentPlatform = null;
+      },
+
+      update(dt) {
+        // Gravidade e Fast-Fall (2º toque no ar para descer rápido)
+        const currentGrav = this.isFastFalling ? this.gravity * 2.8 : this.gravity;
+        this.vy += currentGrav;
+
+        // Limite terminal de velocidade
+        if (this.vy > 18) this.vy = 18;
+
+        this.y += this.vy;
+
+        // Ciclo de corrida
+        if (this.isGrounded) {
+          const speedFactor = currentSpeedPx / INITIAL_SPEED_PX;
+          this.animTimer += (dt || 0.016) * speedFactor * 1000;
+        }
+
+        // Verificação de pouso no chão
+        if (this.y >= GROUND_Y - this.h) {
+          this.y = GROUND_Y - this.h;
+          if (!this.isGrounded && this.isFastFalling) {
+            spawnDust(this.x + this.w / 2, GROUND_Y, 8);
+          }
+          this.vy = 0;
+          this.isGrounded = true;
+          this.isFastFalling = false;
+          this.currentPlatform = null;
+        } else {
+          this.isGrounded = false;
+        }
+
+        // Se estava sobre o púlpito e saiu da borda, desce
+        if (this.currentPlatform) {
+          const p = this.currentPlatform;
+          if (this.x + this.w < p.x || this.x > p.x + p.w) {
+            this.currentPlatform = null;
+          }
+        }
+      },
+
+      draw() {
+        // Montaria na Onça Pintada
+        if (oncaRidingTimer > 0) {
+          this.drawOncaRiding();
+          return;
+        }
+
+        // Auréola de Invencibilidade ou Escudo R14
+        if (this.isInvincible()) {
+          ctx.save();
+          ctx.strokeStyle = '#ffd400';
+          ctx.lineWidth = 3.5;
+          ctx.shadowColor = '#ffd400';
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2, this.y + this.h / 2, 46, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        } else if (hasShield) {
+          ctx.save();
+          ctx.strokeStyle = '#3498db';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2, this.y + this.h / 2, 44, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Tenta usar o sprite com chroma-key tratado (camadas a/b)
+        let currentSprite = null;
+        if (this.isGrounded) {
+          const step = Math.floor(this.animTimer / 100) % 3;
+          if (step === 0) currentSprite = loadedSprites.run1;
+          else if (step === 1) currentSprite = loadedSprites.run2;
+          else currentSprite = loadedSprites.run3;
+        } else {
+          currentSprite = loadedSprites.jump;
+        }
+
+        if (currentSprite && currentSprite.width) {
+          ctx.save();
+          const aspect = currentSprite.width / currentSprite.height;
+          const drawH = 90;
+          const drawW = drawH * aspect;
+          const drawX = this.x + (this.w - drawW) / 2;
+          const drawY = this.y + this.h - drawH;
+          ctx.drawImage(currentSprite, drawX, drawY, drawW, drawH);
+          ctx.restore();
+          return;
+        }
+
+        // REGRA ABSOLUTA: FALLBACK PROCEDURAL BONITO (sem imagem verde, sem quebra)
+        this.drawProcedural();
+      },
+
+      isInvincible() {
+        return oncaRidingTimer > 0 || imperialModeTimer > 0 || bookInvincibleTimer > 0;
+      },
+
+      drawOncaRiding() {
+        ctx.save();
+        const oncaSprite = loadedSprites.onca;
+        const ox = this.x - 20;
+        const oy = this.y + 10;
+        const ow = 86;
+        const oh = 66;
+
+        if (oncaSprite && oncaSprite.width) {
+          ctx.drawImage(oncaSprite, ox, oy, ow, oh);
+        } else {
+          // Fallback procedural para a Onça Pintada
+          ctx.fillStyle = '#e67e22';
+          ctx.beginPath();
+          ctx.roundRect(ox, oy + 20, ow, 36, 12);
+          ctx.fill();
+          ctx.fillStyle = '#0b1528';
+          ctx.beginPath();
+          ctx.arc(ox + 20, oy + 32, 4, 0, Math.PI * 2);
+          ctx.arc(ox + 45, oy + 28, 4, 0, Math.PI * 2);
+          ctx.arc(ox + 65, oy + 34, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Renan montado
+        this.drawProcedural();
+        ctx.restore();
+      },
+
+      // Desenho 100% vetorial no canvas: caricatura lateral correndo para a direita (Fallback resiliente)
+      drawProcedural() {
+        ctx.save();
+        const cx = this.x + this.w / 2;
+        const baseY = this.y + this.h;
+
+        // Ciclo de corrida (3 poses alternadas a cada ~100ms: 0 -> 1 -> 2 -> 1) ou pose de pulo
+        let pose = 0;
+        let bobY = 0;
+        if (this.isGrounded) {
+          const frameDur = 100;
+          const step = Math.floor(this.animTimer / frameDur) % 4;
+          pose = (step === 3) ? 1 : step;
+          bobY = (pose === 1) ? -1.8 : 0; // Balanço vertical sutil (bobbing 1-2px)
+        } else {
+          pose = 'jump';
+          bobY = 0;
+        }
+
+        const torsoTop = baseY - 52 + bobY;
+        const hipY = baseY - 26 + bobY;
+        const shoeY = baseY - 2;
+
+        // Função auxiliar interna para desenhar uma fralda branca com nome em vermelho
+        const drawDiaper = (dx, dy, rot, name) => {
+          ctx.save();
+          ctx.translate(dx, dy);
+          ctx.rotate(rot);
+
+          // Corpo da fralda branca
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#cad5e2';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.roundRect(-9, -6, 18, 13, [3, 3, 5, 5]);
+          ctx.fill();
+          ctx.stroke();
+
+          // Abas adesivas amarelas
+          ctx.fillStyle = '#ffd400';
+          ctx.fillRect(-8, -5, 3, 2.2);
+          ctx.fillRect(5, -5, 3, 2.2);
+
+          // Texto manuscrito em vermelho irregular
+          ctx.fillStyle = '#d32f2f';
+          ctx.font = '900 6.5px -apple-system, BlinkMacSystemFont, "Arial Black", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(name, 0, 1.2);
+
+          ctx.restore();
+        };
+
+        // 1. BRAÇO TRASEIRO E FRALDA "LULA" (desenhados atrás do tronco para profundidade)
+        ctx.strokeStyle = '#1e3a6e';
+        ctx.lineWidth = 4.5;
+        ctx.lineCap = 'round';
+
+        if (pose === 'jump') {
+          // No pulo: braço traseiro erguido segurando a fralda "LULA" para o alto
+          ctx.beginPath();
+          ctx.moveTo(cx - 6, torsoTop + 8);
+          ctx.lineTo(cx - 16, torsoTop - 8);
+          ctx.stroke();
+          drawDiaper(cx - 20, torsoTop - 12, -0.32, 'LULA');
+        } else if (pose === 0) {
+          // Passada 0: braço traseiro balança para trás
+          ctx.beginPath();
+          ctx.moveTo(cx - 6, torsoTop + 8);
+          ctx.lineTo(cx - 16, torsoTop + 14);
+          ctx.stroke();
+          drawDiaper(cx - 19, torsoTop + 16, -0.28, 'LULA');
+        } else if (pose === 1) {
+          // Passada 1 (neutra/passagem): braço traseiro próximo ao quadril
+          ctx.beginPath();
+          ctx.moveTo(cx - 5, torsoTop + 8);
+          ctx.lineTo(cx - 13, torsoTop + 12);
+          ctx.stroke();
+          drawDiaper(cx - 15, torsoTop + 14, -0.15, 'LULA');
+        } else {
+          // Passada 2: braço traseiro balança para frente
+          ctx.beginPath();
+          ctx.moveTo(cx - 5, torsoTop + 8);
+          ctx.lineTo(cx + 12, torsoTop + 11);
+          ctx.stroke();
+          drawDiaper(cx + 15, torsoTop + 12, 0.22, 'LULA');
+        }
+
+        // 2. PERNAS E SAPATOS (Calça terno azul #1e3a6e e sapato preto)
+        ctx.lineWidth = 4.6;
+        ctx.strokeStyle = '#1e3a6e';
+        ctx.lineCap = 'round';
+
+        if (pose === 'jump') {
+          // Pulo: pernas dobradas/recolhidas atleticamente
+          ctx.beginPath();
+          ctx.moveTo(cx - 4, hipY);
+          ctx.lineTo(cx - 13, hipY + 11);
+          ctx.lineTo(cx - 7, shoeY - 6);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(cx + 4, hipY);
+          ctx.lineTo(cx + 11, hipY + 9);
+          ctx.lineTo(cx + 6, shoeY - 4);
+          ctx.stroke();
+
+          ctx.fillStyle = '#0a0d14';
+          ctx.fillRect(cx - 12, shoeY - 8, 9, 4);
+          ctx.fillRect(cx + 4, shoeY - 6, 9, 4);
+        } else if (pose === 0) {
+          // Perna dianteira avançando, traseira empurrando
+          ctx.beginPath();
+          ctx.moveTo(cx - 4, hipY);
+          ctx.lineTo(cx + 8, shoeY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(cx + 4, hipY);
+          ctx.lineTo(cx - 10, shoeY);
+          ctx.stroke();
+
+          ctx.fillStyle = '#0a0d14';
+          ctx.fillRect(cx + 5, shoeY - 2, 10, 4);
+          ctx.fillRect(cx - 15, shoeY - 2, 9, 4);
+        } else if (pose === 1) {
+          // Pernas alinhadas no ponto de cruzamento
+          ctx.beginPath();
+          ctx.moveTo(cx - 3, hipY);
+          ctx.lineTo(cx - 1, shoeY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(cx + 3, hipY);
+          ctx.lineTo(cx + 4, shoeY);
+          ctx.stroke();
+
+          ctx.fillStyle = '#0a0d14';
+          ctx.fillRect(cx - 5, shoeY - 2, 9, 4);
+          ctx.fillRect(cx + 2, shoeY - 2, 9, 4);
+        } else {
+          // Perna dianteira recuando, traseira avançando
+          ctx.beginPath();
+          ctx.moveTo(cx - 4, hipY);
+          ctx.lineTo(cx - 11, shoeY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(cx + 4, hipY);
+          ctx.lineTo(cx + 9, shoeY);
+          ctx.stroke();
+
+          ctx.fillStyle = '#0a0d14';
+          ctx.fillRect(cx - 15, shoeY - 2, 9, 4);
+          ctx.fillRect(cx + 6, shoeY - 2, 10, 4);
+        }
+
+        // 3. TRONCO E TERNO AZUL #1e3a6e COM CONTORNO ESCURO
+        const torsoH = 28;
+        ctx.fillStyle = '#1e3a6e';
+        ctx.strokeStyle = '#0a162d';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.roundRect(cx - 11, torsoTop, 22, torsoH, [4, 5, 2, 2]);
+        ctx.fill();
+        ctx.stroke();
+
+        // Colarinho da camisa branca (triângulo)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(cx - 3, torsoTop);
+        ctx.lineTo(cx + 7, torsoTop);
+        ctx.lineTo(cx + 2, torsoTop + 10);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gravata amarela vibrante
+        ctx.fillStyle = '#ffd400';
+        ctx.strokeStyle = '#b89000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, torsoTop + 2);
+        ctx.lineTo(cx + 4, torsoTop + 2);
+        ctx.lineTo(cx + 4.5, torsoTop + 14);
+        ctx.lineTo(cx + 2, torsoTop + 19);
+        ctx.lineTo(cx - 0.5, torsoTop + 14);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Broche R14 na lapela
+        ctx.fillStyle = '#ffd400';
+        ctx.beginPath();
+        ctx.arc(cx - 5.5, torsoTop + 11, 4.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0b1528';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#0b1528';
+        ctx.font = '900 4px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('R14', cx - 5.5, torsoTop + 11.2);
+
+        // 4. CABEÇA E ROSTO (Círculo pêssego, cabelo marrom, cara virada para a direita)
+        const headR = 11;
+        const headCX = cx + 2;
+        const headCY = torsoTop - 12;
+
+        // Cabeça pêssego com contorno
+        ctx.fillStyle = '#fcd0a1';
+        ctx.strokeStyle = '#0b1528';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(headCX, headCY, headR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Nariz caricato de perfil
+        ctx.fillStyle = '#f5b880';
+        ctx.beginPath();
+        ctx.arc(headCX + 8, headCY, 2.5, -Math.PI * 0.4, Math.PI * 0.4);
+        ctx.fill();
+
+        // Barba desenhada
+        ctx.fillStyle = '#5c3a22';
+        ctx.beginPath();
+        ctx.arc(headCX, headCY, headR - 0.5, Math.PI * 0.18, Math.PI * 0.65);
+        ctx.lineTo(headCX + 8, headCY + 5);
+        ctx.lineTo(headCX + 7, headCY + 8);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cabelo marrom desenhado
+        ctx.fillStyle = '#3e2315';
+        ctx.beginPath();
+        ctx.arc(headCX - 1, headCY - 2, headR + 1.2, Math.PI * 0.72, Math.PI * 2.15);
+        ctx.lineTo(headCX + 10, headCY - 7);
+        ctx.lineTo(headCX + 7, headCY - 4);
+        ctx.lineTo(headCX + 8, headCY - 1);
+        ctx.lineTo(headCX + 4, headCY - 5);
+        ctx.closePath();
+        ctx.fill();
+
+        // Olho focado para frente
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(headCX + 5, headCY - 1.5, 3.2, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#111827';
+        ctx.beginPath();
+        ctx.arc(headCX + 6, headCY - 1.5, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(headCX + 6.6, headCY - 2.2, 0.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sobrancelha determinada
+        ctx.strokeStyle = '#22130b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(headCX + 2.5, headCY - 4.5);
+        ctx.lineTo(headCX + 9, headCY - 3.2);
+        ctx.stroke();
+
+        // Boca séria
+        ctx.strokeStyle = '#6d3b28';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(headCX + 4, headCY + 4.5);
+        ctx.lineTo(headCX + 8, headCY + 4.2);
+        ctx.stroke();
+
+        // 5. BRAÇO DIANTEIRO E FRALDA "FLAVIO"
+        ctx.strokeStyle = '#1e3a6e';
+        ctx.lineWidth = 4.5;
+        ctx.lineCap = 'round';
+
+        if (pose === 'jump') {
+          // No pulo: braço dianteiro erguido segurando a fralda "FLAVIO" no alto
+          ctx.beginPath();
+          ctx.moveTo(cx + 6, torsoTop + 8);
+          ctx.lineTo(cx + 16, torsoTop - 8);
+          ctx.stroke();
+          drawDiaper(cx + 19, torsoTop - 11, 0.32, 'FLAVIO');
+        } else if (pose === 0) {
+          // Passada 0: braço dianteiro balança para frente
+          ctx.beginPath();
+          ctx.moveTo(cx + 6, torsoTop + 8);
+          ctx.lineTo(cx + 17, torsoTop + 10);
+          ctx.stroke();
+          drawDiaper(cx + 20, torsoTop + 10, 0.26, 'FLAVIO');
+        } else if (pose === 1) {
+          // Passada 1 (neutra/passagem): braço dianteiro junto ao tronco
+          ctx.beginPath();
+          ctx.moveTo(cx + 6, torsoTop + 8);
+          ctx.lineTo(cx + 14, torsoTop + 12);
+          ctx.stroke();
+          drawDiaper(cx + 16, torsoTop + 14, 0.16, 'FLAVIO');
+        } else {
+          // Passada 2: braço dianteiro balança para trás
+          ctx.beginPath();
+          ctx.moveTo(cx + 6, torsoTop + 8);
+          ctx.lineTo(cx - 15, torsoTop + 12);
+          ctx.stroke();
+          drawDiaper(cx - 17, torsoTop + 14, -0.3, 'FLAVIO');
+        }
+
+        ctx.restore();
+      }
+    };
+
+    // --- CONTROLES (Toque / Espaço / Clique) ---
+    let inputHeld = false;
+    let jumpHeldTime = 0;
+    const MAX_HOLD_TIME = 16; // Quadros permitidos para segurar e ganhar altura extra
+
+    function handleInputStart() {
+      audio.init();
+
+      if (gameState === STATE.MENU) {
+        startGame();
+        return;
+      }
+      if (gameState === STATE.GAMEOVER) {
+        return;
+      }
+
+      inputHeld = true;
+
+      if (renan.isGrounded) {
+        // Primeiro toque no chão: INICIA PULO
+        renan.vy = renan.jumpForce;
+        renan.isGrounded = false;
+        jumpHeldTime = 0;
+        audio.playJump(false);
+        spawnDust(renan.x + renan.w / 2, renan.y + renan.h, 6);
+      } else if (!renan.isFastFalling) {
+        // Segundo toque enquanto estiver no ar: FAST-FALL para pouso de precisão
+        renan.isFastFalling = true;
+        renan.vy = Math.max(renan.vy, 11);
+        audio.playDive();
+      }
+    }
+
+    function handleInputEnd() {
+      inputHeld = false;
+    }
+
+    // Ouvintes de Eventos (Desktop + Touch Mobile)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        if (!e.repeat) handleInputStart();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        handleInputEnd();
+      }
+    });
+
+    // Touch direto na tela do canvas
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleInputStart();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      handleInputEnd();
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      handleInputStart();
+    });
+
+    window.addEventListener('mouseup', () => {
+      handleInputEnd();
+    });
+
+    // --- ENTIDADES DO MUNDO ---
+
+    // Púlpito de Debate
+    class Pulpit {
+      constructor(x, candidateName) {
+        this.x = x;
+        this.w = 68;
+        this.h = 68;
+        this.y = GROUND_Y - this.h;
+        this.candidateName = candidateName || CANDIDATE_LIST[0];
+        this.hasDiaper = false;
+        this.diaperScale = 0;
+        this.cleared = false;
+      }
+
+      update(dx, dt) {
+        this.x -= dx;
+        if (this.diaperScale > 1) {
+          this.diaperScale = Math.max(1, this.diaperScale - 0.1);
+        }
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Palanque / Corpo de madeira nobre do púlpito
+        ctx.fillStyle = '#18243c';
+        ctx.strokeStyle = '#2b3f66';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.roundRect(3, 8, this.w - 6, this.h - 8, [0, 0, 6, 6]);
+        ctx.fill();
+        ctx.stroke();
+
+        // Topo do púlpito
+        ctx.fillStyle = '#22365a';
+        ctx.fillRect(0, 4, this.w, 6);
+        ctx.fillStyle = '#ffd400';
+        ctx.fillRect(0, 3, this.w, 1.5);
+
+        // Haste e microfone
+        ctx.strokeStyle = '#a4bddc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(16, 4);
+        ctx.lineTo(20, -12);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffd400';
+        ctx.beginPath();
+        ctx.arc(21, -14, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // PLACA DO CANDIDATO
+        const plateX = 5;
+        const plateY = 16;
+        const plateW = this.w - 10;
+        const plateH = 34;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(plateX, plateY, plateW, plateH, 4);
+        ctx.fill();
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.8;
+        ctx.stroke();
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '900 15px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.strokeText(this.candidateName, this.w / 2, plateY + plateH / 2);
+
+        ctx.fillStyle = '#0a1426';
+        ctx.fillText(this.candidateName, this.w / 2, plateY + plateH / 2);
+
+        // Fralda colocada
+        if (this.hasDiaper) {
+          ctx.save();
+          ctx.translate(this.w / 2, 4);
+          ctx.scale(this.diaperScale, this.diaperScale);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#ffd400';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-18, 0);
+          ctx.lineTo(18, 0);
+          ctx.quadraticCurveTo(16, 20, 0, 24);
+          ctx.quadraticCurveTo(-16, 20, -18, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // --- CLASSES DE OBSTÁCULOS COM FALLBACK PROCEDURAL BONITO E RÓTULOS LEGÍVEIS ---
+    // Fonte mínima 11px em negrito com contorno escuro e pequeno alerta piscante opcional
+
+    function drawEntityLabel(x, y, text, color = '#ffd400') {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '900 11.5px "Arial Black", sans-serif';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3.5;
+      ctx.strokeText(text, x, y);
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+      ctx.restore();
+    }
+
+    function drawWarningIcon(x, y) {
+      ctx.save();
+      ctx.font = '900 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffd400';
+      ctx.fillText('⚠️', x, y);
+      ctx.restore();
+    }
+
+    // 1. JORNALISTA
+    class JornalistaObstacle {
+      constructor(x) {
+        this.x = x;
+        this.w = 52;
+        this.h = 80;
+        this.y = GROUND_Y - this.h;
+        this.neutralized = false;
+        this.exitVx = 0;
+        this.exitVy = 0;
+        this.cleared = false;
+      }
+
+      update(dx, dt) {
+        if (!this.neutralized) {
+          this.x -= dx;
+        } else {
+          this.x += this.exitVx * dt;
+          this.y += this.exitVy * dt;
+        }
+      }
+
+      neutralize() {
+        if (this.neutralized) return;
+        this.neutralized = true;
+        this.exitVx = -140;
+        this.exitVy = -90;
+        spawnParticles(this.x + this.w / 2, this.y + 20, '#ffd400', 12);
+      }
+
+      draw() {
+        ctx.save();
+        const spr = loadedSprites.jornalista;
+        if (spr && spr.width && spr.height) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural bonito: retângulo alto rosa #e57373, cabeça com cabelo preso, mini-microfone
+          ctx.fillStyle = '#e57373';
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.roundRect(this.x + 8, this.y + 26, this.w - 16, this.h - 26, [4, 4, 2, 2]);
+          ctx.fill();
+          ctx.stroke();
+
+          // Cabeça
+          ctx.fillStyle = '#fbd4b4';
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2, this.y + 14, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Cabelo preso
+          ctx.fillStyle = '#3e2723';
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2 - 3, this.y + 10, 11, Math.PI * 0.8, Math.PI * 2.1);
+          ctx.fill();
+          // Coque
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2 - 12, this.y + 9, 5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Mini microfone (linha + círculo cinza)
+          ctx.strokeStyle = '#90a4ae';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(this.x + this.w - 12, this.y + 40);
+          ctx.lineTo(this.x + this.w - 6, this.y + 26);
+          ctx.stroke();
+          ctx.fillStyle = '#37474f';
+          ctx.beginPath();
+          ctx.arc(this.x + this.w - 6, this.y + 24, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Rótulo legível "JORNALISTA"
+          drawEntityLabel(this.x + this.w / 2, this.y + 50, 'JORNALISTA', '#ffffff');
+        }
+
+        if (!this.neutralized) {
+          drawWarningIcon(this.x + this.w / 2, this.y - 10);
+        }
+        ctx.restore();
+      }
+    }
+
+    // 2. EX-MBL
+    class ExMblObstacle {
+      constructor(x) {
+        this.x = x;
+        this.w = 48;
+        this.h = 72;
+        this.y = GROUND_Y - this.h;
+        this.vx = 48;
+        this.neutralized = false;
+        this.cleared = false;
+      }
+
+      update(dx, dt) {
+        this.x -= dx - (this.vx * dt);
+      }
+
+      draw() {
+        ctx.save();
+        const spr = loadedSprites.exmbl;
+        if (spr && spr.width && spr.height) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural: quadrado alto azul-claro #4fc3f7 com cabeça e dedo apontando
+          ctx.fillStyle = '#4fc3f7';
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.roundRect(this.x + 6, this.y + 24, this.w - 12, this.h - 24, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          // Cabeça
+          ctx.fillStyle = '#fbd4b4';
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2, this.y + 13, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Dedo apontando para a frente
+          ctx.strokeStyle = '#fbd4b4';
+          ctx.lineWidth = 3.5;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(this.x + this.w / 2, this.y + 34);
+          ctx.lineTo(this.x + this.w + 4, this.y + 30);
+          ctx.stroke();
+
+          drawEntityLabel(this.x + this.w / 2, this.y + 48, 'EX-MBL', '#ffd400');
+        }
+
+        drawWarningIcon(this.x + this.w / 2, this.y - 10);
+        ctx.restore();
+      }
+    }
+
+    // 3. MC LATROCÍNIO
+    class McLatrocinioObstacle {
+      constructor(x) {
+        this.x = x;
+        this.w = 50;
+        this.h = 74;
+        this.y = GROUND_Y - this.h;
+        this.extraSpeed = 65;
+        this.neutralized = false;
+        this.cleared = false;
+      }
+
+      update(dx, dt) {
+        this.x -= (dx + this.extraSpeed * dt);
+      }
+
+      draw() {
+        ctx.save();
+        const spr = loadedSprites.mc;
+        if (spr && spr.width && spr.height) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural: losango/figura alta verde-limão #d4e157 com corrente dourada e boné
+          ctx.fillStyle = '#d4e157';
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.roundRect(this.x + 6, this.y + 24, this.w - 12, this.h - 24, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          // Boné
+          ctx.fillStyle = '#c0392b';
+          ctx.fillRect(this.x + 10, this.y + 4, 30, 8);
+          ctx.fillRect(this.x + 2, this.y + 10, 20, 4);
+
+          // Cabeça
+          ctx.fillStyle = '#fbd4b4';
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2, this.y + 15, 9, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Corrente dourada
+          ctx.fillStyle = '#ffd400';
+          for (let cx = this.x + 14; cx <= this.x + 36; cx += 5) {
+            ctx.beginPath();
+            ctx.arc(cx, this.y + 32, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          drawEntityLabel(this.x + this.w / 2, this.y + 50, 'MC', '#0b1528');
+        }
+
+        drawWarningIcon(this.x + this.w / 2, this.y - 10);
+        ctx.restore();
+      }
+    }
+
+    // 4. LADRÃO DE CELULAR
+    class LadraoObstacle {
+      constructor(x, indexInSquad) {
+        this.x = x;
+        this.w = 44;
+        this.h = 68;
+        this.y = GROUND_Y - this.h;
+        this.index = indexInSquad;
+        this.slowerSpeed = 24;
+        this.neutralized = false;
+        this.cleared = false;
+      }
+
+      update(dx, dt) {
+        this.x -= (dx - this.slowerSpeed * dt);
+      }
+
+      draw() {
+        ctx.save();
+        const spr = loadedSprites.ladrao;
+        if (spr && spr.width && spr.height) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural: retângulo cinza-escuro #607d8b com capuz e celular na mão
+          ctx.fillStyle = '#607d8b';
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.roundRect(this.x + 6, this.y + 22, this.w - 12, this.h - 22, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          // Capuz triangular
+          ctx.fillStyle = '#37474f';
+          ctx.beginPath();
+          ctx.moveTo(this.x + this.w / 2, this.y + 2);
+          ctx.lineTo(this.x + 8, this.y + 22);
+          ctx.lineTo(this.x + this.w - 8, this.y + 22);
+          ctx.closePath();
+          ctx.fill();
+
+          // Celular na mão (retângulo brilhante)
+          ctx.fillStyle = '#81d4fa';
+          ctx.fillRect(this.x + this.w - 10, this.y + 32, 8, 14);
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(this.x + this.w - 10, this.y + 32, 8, 14);
+
+          drawEntityLabel(this.x + this.w / 2, this.y + 46, 'LADRÃO', '#ffffff');
+        }
+
+        drawWarningIcon(this.x + this.w / 2, this.y - 10);
+        ctx.restore();
+      }
+    }
+
+    // 5. MILITANTE DE ESQUERDA
+    class MilitanteChaser {
+      constructor(x) {
+        this.x = x;
+        this.w = 46;
+        this.h = 70;
+        this.y = GROUND_Y - this.h;
+        this.speed = 135;
+        this.neutralized = false;
+      }
+
+      update(dx, dt) {
+        this.x += (this.speed * dt) - dx;
+      }
+
+      draw() {
+        ctx.save();
+        const spr = loadedSprites.militante;
+        if (spr && spr.width && spr.height) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural: retângulo vermelho #e53935 com estrela branca e cabelo azul
+          ctx.fillStyle = '#e53935';
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.roundRect(this.x + 6, this.y + 22, this.w - 12, this.h - 22, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          // Cabeça
+          ctx.fillStyle = '#fbd4b4';
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2, this.y + 13, 10, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Cabelo azul
+          ctx.fillStyle = '#0288d1';
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2, this.y + 9, 11, Math.PI * 0.8, Math.PI * 2.2);
+          ctx.fill();
+
+          // Estrela branca no peito
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '900 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('★', this.x + this.w / 2, this.y + 34);
+
+          drawEntityLabel(this.x + this.w / 2, this.y + 48, 'MILITANTE', '#ffffff');
+        }
+
+        drawWarningIcon(this.x + this.w / 2, this.y - 10);
+        ctx.restore();
+      }
+    }
+
+    // 6. DRONE DO CURY
+    class DroneObstacle {
+      constructor(x, baseY = 410) {
+        this.x = x;
+        this.w = 56;
+        this.h = 36;
+        this.baseY = baseY;
+        this.y = baseY;
+        this.time = Math.random() * 5;
+        this.speedX = 70;
+        this.cleared = false;
+        this.propellerAngle = 0;
+      }
+
+      update(dx, dt) {
+        this.time += dt * 3.8;
+        this.propellerAngle += dt * 25;
+        this.x -= (dx + this.speedX * dt);
+        this.y = this.baseY + Math.sin(this.time) * 45;
+      }
+
+      draw() {
+        ctx.save();
+        const spr = loadedSprites.drone;
+        if (spr && spr.width && spr.height) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural: corpo retangular cinza #90a4ae com 4 hélices girando e placa pequena
+          ctx.fillStyle = '#90a4ae';
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 2.2;
+          ctx.fillRect(this.x + 10, this.y + 12, this.w - 20, 16);
+          ctx.strokeRect(this.x + 10, this.y + 12, this.w - 20, 16);
+
+          // 4 Hélices giratórias
+          ctx.fillStyle = '#ffd400';
+          ctx.fillRect(this.x + 2, this.y + 6, 12, 3);
+          ctx.fillRect(this.x + this.w - 14, this.y + 6, 12, 3);
+          ctx.fillRect(this.x + 2, this.y + 28, 12, 3);
+          ctx.fillRect(this.x + this.w - 14, this.y + 28, 12, 3);
+
+          drawEntityLabel(this.x + this.w / 2, this.y + 21, 'DRONE', '#0b1528');
+        }
+
+        drawWarningIcon(this.x + this.w / 2, this.y - 12);
+        ctx.restore();
+      }
+    }
+
+    // 7. TOGA DO SUPREMO
+    class TogaObstacle {
+      constructor(x) {
+        this.x = x;
+        this.w = 50;
+        this.h = 104; // Parede alta
+        this.y = GROUND_Y - this.h;
+        this.cleared = false;
+      }
+
+      update(dx) {
+        this.x -= dx;
+      }
+
+      draw() {
+        ctx.save();
+        const spr = loadedSprites.toga;
+        if (spr && spr.width && spr.height) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural: retângulo muito alto vinho #6d4c41 com martelo e carimbo INDEFERIDO
+          ctx.fillStyle = '#6d4c41';
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.roundRect(this.x + 4, this.y + 4, this.w - 8, this.h - 4, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          // Martelo
+          ctx.fillStyle = '#d7ccc8';
+          ctx.fillRect(this.x + 20, this.y + 12, 10, 6);
+          ctx.fillStyle = '#8d6e63';
+          ctx.fillRect(this.x + 23, this.y + 18, 4, 14);
+
+          // Carimbo fixo "INDEFERIDO"
+          ctx.save();
+          ctx.translate(this.x + this.w / 2, this.y + 54);
+          ctx.rotate(-0.2);
+          ctx.strokeStyle = '#d32f2f';
+          ctx.lineWidth = 2.4;
+          ctx.strokeRect(-23, -11, 46, 22);
+          ctx.fillStyle = '#d32f2f';
+          ctx.font = '900 8.5px "Arial Black", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('INDEFERIDO', 0, 0);
+          ctx.restore();
+
+          drawEntityLabel(this.x + this.w / 2, this.y + 86, 'TOGA', '#ffd400');
+        }
+
+        drawWarningIcon(this.x + this.w / 2, this.y - 12);
+        ctx.restore();
+      }
+    }
+
+    // --- COLETÁVEIS (PERKS, BANDEIRAS E ALGEMAS COM FALLBACK PROCEDURAL PADRONIZADO ~48PX) ---
+    class CollectibleItem {
+      constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.w = 44;
+        this.h = 44;
+        this.type = type;
+        this.bobTime = Math.random() * 4;
+        this.baseY = y;
+      }
+
+      update(dx, dt) {
+        this.x -= dx;
+        this.bobTime += dt * 3.5;
+        this.y = this.baseY + Math.sin(this.bobTime) * 6;
+      }
+
+      draw() {
+        ctx.save();
+        const spr = loadedSprites[this.type];
+        if (spr && spr.width) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural de ~48px com círculo colorido + inicial grande + contorno escuro
+          const cx = this.x + this.w / 2;
+          const cy = this.y + this.h / 2;
+          const r = 20;
+
+          if (this.type === 'onca') {
+            // Círculo amarelo com manchas escuras e "O"
+            ctx.fillStyle = '#ffd400';
+            ctx.strokeStyle = '#0b1528';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#8d6e63';
+            ctx.beginPath();
+            ctx.arc(cx - 8, cy - 7, 3, 0, Math.PI * 2);
+            ctx.arc(cx + 8, cy + 8, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            drawEntityLabel(cx, cy, 'O', '#0b1528');
+          } else if (this.type === 'espadim') {
+            // Círculo prata com "E"
+            ctx.fillStyle = '#e0e0e0';
+            ctx.strokeStyle = '#0b1528';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            drawEntityLabel(cx, cy, 'E', '#0b1528');
+          } else if (this.type === 'valete') {
+            // Círculo azul médio com símbolo ♦ e "V"
+            ctx.fillStyle = '#29b6f6';
+            ctx.strokeStyle = '#0b1528';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#d32f2f';
+            ctx.font = '900 8px sans-serif';
+            ctx.fillText('♦', cx, cy - 8);
+
+            drawEntityLabel(cx, cy + 3, 'V', '#ffffff');
+          } else if (this.type === 'livro') {
+            // Círculo amarelo com "L"
+            ctx.fillStyle = '#ffd400';
+            ctx.strokeStyle = '#0b1528';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            drawEntityLabel(cx, cy, 'L', '#0b1528');
+          } else if (this.type === 'broche') {
+            // Círculo vermelho com "B"
+            ctx.fillStyle = '#e53935';
+            ctx.strokeStyle = '#0b1528';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            drawEntityLabel(cx, cy, 'B', '#ffffff');
+          } else if (this.type === 'classica') {
+            // Bandeira Clássica: haste vertical cinza + faixas preta/branca/amarela e "M"
+            ctx.fillStyle = '#90a4ae';
+            ctx.fillRect(this.x + 6, this.y + 4, 3, this.h - 8);
+
+            ctx.fillStyle = '#111111';
+            ctx.fillRect(this.x + 9, this.y + 6, 28, 8);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(this.x + 9, this.y + 14, 28, 8);
+            ctx.fillStyle = '#ffd400';
+            ctx.fillRect(this.x + 9, this.y + 22, 28, 8);
+
+            ctx.strokeStyle = '#0b1528';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x + 9, this.y + 6, 28, 24);
+
+            drawEntityLabel(this.x + 23, this.y + 18, 'M', '#0b1528');
+          } else if (this.type === 'imperial') {
+            // Bandeira Imperial: haste vertical cinza + retângulo preto/amarelo com coroa simples e "14"
+            ctx.fillStyle = '#90a4ae';
+            ctx.fillRect(this.x + 6, this.y + 4, 3, this.h - 8);
+
+            ctx.fillStyle = '#ffd400';
+            ctx.fillRect(this.x + 9, this.y + 6, 28, 24);
+            ctx.fillStyle = '#0b1528';
+            ctx.fillRect(this.x + 13, this.y + 10, 20, 16);
+
+            ctx.strokeStyle = '#0b1528';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x + 9, this.y + 6, 28, 24);
+
+            drawEntityLabel(this.x + 23, this.y + 18, '14', '#ffd400');
+          } else if (this.type === 'algema') {
+            ctx.strokeStyle = '#cfd8dc';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.arc(cx - 8, cy, 8, 0, Math.PI * 2);
+            ctx.arc(cx + 8, cy, 8, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffd400';
+            ctx.fillRect(cx - 3, cy - 2, 6, 4);
+          }
+        }
+        ctx.restore();
+      }
+    }
+
+    // Sistema de Efeitos e Partículas
+    function spawnParticles(x, y, color = '#ffd400', count = 12) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = Math.random() * 4 + 1.5;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd - 2,
+          size: Math.random() * 4 + 2,
+          life: 1,
+          decay: Math.random() * 0.03 + 0.02,
+          color
+        });
+      }
+    }
+
+    function spawnDust(x, y, count = 5) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x + (Math.random() * 16 - 8),
+          y: y - 2,
+          vx: (Math.random() - 0.5) * 2 - (speed * 0.2),
+          vy: -Math.random() * 1.5,
+          size: Math.random() * 3 + 2,
+          life: 0.8,
+          decay: 0.04,
+          color: 'rgba(255, 255, 255, 0.4)'
+        });
+      }
+    }
+
+    function addFloatingText(x, y, text, color = '#ffd400') {
+      floatingTexts.push({
+        x,
+        y,
+        text,
+        color,
+        life: 1,
+        vy: -1.6
+      });
+    }
+
+    // --- GERADOR DE MUNDO BALANCEADO (MENOS CAOS / FASE INICIAL CALMA) ---
+    function createNextPulpit(x) {
+      const candidate = CANDIDATE_LIST[nextCandidateIndex % CANDIDATE_LIST.length];
+      nextCandidateIndex++;
+      return new Pulpit(x, candidate);
+    }
+
+    function resetWorld() {
+      pulpits = [];
+      obstacles = [];
+      collectibles = [];
+      particles = [];
+      floatingTexts = [];
+      activeBanner = null;
+
+      currentSpeedPx = INITIAL_SPEED_PX;
+      freezeTimer = 0;
+      score = 0;
+      diapersPlaced = 0;
+      obstaclesCleared = 0;
+      handcuffs = 0;
+      gameTime = 0;
+      distanceCovered = 0;
+      cameraShake = 0;
+      nextCandidateIndex = 0;
+      currentRankTier = RANK_TIERS[RANK_TIERS.length - 1];
+
+      // O primeiro obstáculo surge só após ~3.8s de corrida
+      spawnCooldown = 3.8;
+      perkCooldown = 8.0;
+
+      cardMultiplierTimer = 0;
+      flagComboCount = 0;
+      imperialModeTimer = 0;
+      bookInvincibleTimer = 0;
+      oncaRidingTimer = 0;
+      hasShield = false;
+      hasSwordStrike = false;
+
+      thiefSquadActive = false;
+      thiefSquadCount = 0;
+      thiefSquadCaught = 0;
+      prisonersHeld = 0;
+
+      renan.reset();
+
+      // Púlpito inicial bem à frente para começar com calma
+      pulpits.push(createNextPulpit(V_WIDTH + 180));
+    }
+
+    function getActiveMultiplier() {
+      let mult = 1;
+      if (cardMultiplierTimer > 0) mult *= 2;
+      if (imperialModeTimer > 0) mult *= 3;
+      return mult;
+    }
+
+    function updateWorld(dt) {
+      // Temporizadores de perks e banner
+      if (cardMultiplierTimer > 0) cardMultiplierTimer -= dt;
+      if (imperialModeTimer > 0) imperialModeTimer -= dt;
+      if (bookInvincibleTimer > 0) bookInvincibleTimer -= dt;
+      if (oncaRidingTimer > 0) oncaRidingTimer -= dt;
+
+      if (activeBanner) {
+        activeBanner.timer -= dt;
+        if (activeBanner.timer <= 0) {
+          activeBanner = null;
+        }
+      }
+
+      let speedFactor = 1.0;
+      if (freezeTimer > 0) {
+        freezeTimer -= dt;
+        speedFactor = 0.25;
+      }
+
+      // Rampa suave de velocidade: 230 px/s até 600 px/s ao longo de ~90 segundos
+      if (currentSpeedPx < MAX_SPEED_PX) {
+        const rampRate = (MAX_SPEED_PX - INITIAL_SPEED_PX) / 90; // ~4.1 px/s por segundo
+        currentSpeedPx = Math.min(MAX_SPEED_PX, currentSpeedPx + rampRate * dt);
+      }
+
+      const effectiveSpeed = currentSpeedPx * speedFactor * dt;
+      gameTime += dt;
+      distanceCovered += effectiveSpeed;
+
+      const currentMult = getActiveMultiplier();
+      score += dt * 10 * currentMult;
+
+      // Verificação de promoção de patente com banner oficial
+      const newRank = getRankByScore(score);
+      if (newRank.title !== currentRankTier.title) {
+        currentRankTier = newRank;
+        mostrarBanner(`PROMOVIDO A ${newRank.title.toUpperCase()}!`, "rank", "🎖️");
+      }
+
+      // Pulo variável
+      if (inputHeld && !renan.isGrounded && jumpHeldTime < MAX_HOLD_TIME && renan.vy < 0) {
+        renan.vy -= 0.32;
+        jumpHeldTime++;
+      }
+
+      renan.update(dt);
+
+      // Controle de spawn por tempo (Começa em ~2.6s e diminui aos poucos até ~1.0s, nunca menos)
+      spawnCooldown -= dt;
+      perkCooldown -= dt;
+
+      // TETO DE ENTIDADES ATIVAS: máx 2 nas primeiras fases (<40s), máx 4 após 40s; teto global 6
+      const activeEntityCount = obstacles.length + pulpits.length;
+      const maxAllowedEntities = gameTime < 40 ? 2 : 4;
+
+      if (spawnCooldown <= 0 && activeEntityCount < maxAllowedEntities && activeEntityCount < 6) {
+        spawnNextFeature();
+
+        // Intervalo entre spawns: rampa de 2.6s descendo até 1.0s aos 90s
+        const tRatio = Math.min(1, gameTime / 90);
+        const nextInterval = 2.6 - (tRatio * 1.6); // 2.6s -> 1.0s
+        spawnCooldown = Math.max(1.0, nextInterval + (Math.random() * 0.4 - 0.2));
+      }
+
+      if (perkCooldown <= 0 && collectibles.length < 2) {
+        spawnCollectible(V_WIDTH + 60);
+        perkCooldown = 12.0 + Math.random() * 8.0; // Perks raros
+      }
+
+      // Atualiza Púlpitos
+      for (let i = pulpits.length - 1; i >= 0; i--) {
+        const p = pulpits[i];
+        p.update(effectiveSpeed, dt);
+        checkPulpitCollision(p);
+        if (p.x + p.w < -100) {
+          pulpits.splice(i, 1);
+        }
+      }
+
+      // Atualiza Coletáveis
+      for (let i = collectibles.length - 1; i >= 0; i--) {
+        const c = collectibles[i];
+        c.update(effectiveSpeed, dt);
+
+        // Coleta pelo Renan
+        if (checkAABB(renan.x, renan.y, renan.w, renan.h, c.x, c.y, c.w, c.h)) {
+          applyCollectible(c.type);
+          collectibles.splice(i, 1);
+          continue;
+        }
+
+        if (c.x + c.w < -60) {
+          collectibles.splice(i, 1);
+        }
+      }
+
+      // Atualiza Obstáculos e Inimigos
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.update(effectiveSpeed, dt);
+
+        // Ultrapassou com sucesso
+        if (!obs.cleared && obs.x + obs.w < renan.x && !obs.neutralized) {
+          obs.cleared = true;
+          obstaclesCleared++;
+          const pts = 50 * currentMult;
+          score += pts;
+          audio.playObstaclePass();
+          addFloatingText(renan.x + 10, renan.y - 10, `+${pts}`, "#48bb78");
+        }
+
+        // Colisão com Renan
+        if (!obs.neutralized && checkAABB(renan.x + 2, renan.y + 4, renan.w - 4, renan.h - 4, obs.x + 2, obs.y + 4, obs.w - 4, obs.h - 4)) {
+          handleObstacleCollision(obs, i);
+          continue;
+        }
+
+        // Remove fora da tela
+        if (obs.x < -120) {
+          if (obs instanceof LadraoObstacle && thiefSquadActive && !obs.neutralized) {
+            // Ladrão fugiu pela esquerda
+            addFloatingText(60, GROUND_Y - 40, "FUGIU!", "#ff7676");
+          }
+          obstacles.splice(i, 1);
+        }
+      }
+
+      // Atualiza Partículas
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life -= pt.decay;
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+
+      // Atualiza Textos Flutuantes
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy;
+        ft.life -= 0.022;
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+      }
+
+      if (cameraShake > 0) cameraShake = Math.max(0, cameraShake - 0.4);
+
+      updateHudDisplay();
+    }
+
+    function applyCollectible(type) {
+      const mult = getActiveMultiplier();
+      audio.playDiaperPlaced();
+
+      if (type === 'valete') {
+        cardMultiplierTimer = 5;
+        mostrarBanner("X2 PONTOS! VALETE ATIVO", "perk", "🃏");
+        addFloatingText(renan.x, renan.y - 20, "X2!", "#ffd400");
+      } else if (type === 'livro') {
+        bookInvincibleTimer = 4;
+        mostrarBanner("INVENCÍVEL! LIVRO AMARELO", "perk", "📖");
+        addFloatingText(renan.x, renan.y - 20, "INVENCÍVEL!", "#ffd400");
+      } else if (type === 'broche') {
+        hasShield = true;
+        mostrarBanner("ESCUDO ATIVO! BROCHE R14", "perk", "🛡️");
+        addFloatingText(renan.x, renan.y - 20, "ESCUDO!", "#3498db");
+      } else if (type === 'espadim') {
+        hasSwordStrike = true;
+        mostrarBanner("ESPADIM! ONE-SHOT PRONTO", "perk", "⚔️");
+        addFloatingText(renan.x, renan.y - 20, "ESPADIM!", "#ffd400");
+      } else if (type === 'onca') {
+        oncaRidingTimer = 5.5;
+        mostrarBanner("MODO ONÇA! ATROPELAMENTO", "perk", "🐆");
+        addFloatingText(renan.x, renan.y - 24, "ONÇA!", "#e67e22");
+      } else if (type === 'classica') {
+        flagComboCount++;
+        const pts = (flagComboCount === 1 ? 50 : (flagComboCount === 2 ? 150 : 300 + (flagComboCount - 3) * 150)) * mult;
+        score += pts;
+        freezeTimer = 0.5;
+        mostrarBanner(`COMBO! +${pts} PONTOS`, "flag", "🚩");
+        addFloatingText(renan.x, renan.y - 20, `+${pts}`, "#2ecc71");
+      } else if (type === 'imperial') {
+        imperialModeTimer = 6;
+        mostrarBanner("MODO IMPERIAL! X3 ATIVO", "flag", "👑");
+        addFloatingText(renan.x, renan.y - 25, "X3 PONTOS!", "#ffd400");
+      } else if (type === 'algema') {
+        handcuffs++;
+        score += 30 * mult;
+        mostrarBanner("+1 ALGEMA POLICIAL", "item", "⛓️");
+        addFloatingText(renan.x, renan.y - 20, "+1 ALGEMA", "#ffd400");
+      }
+    }
+
+    function handleObstacleCollision(obs, index) {
+      // Espadim de Tiradentes (one-shot no obstáculo)
+      if (hasSwordStrike) {
+        hasSwordStrike = false;
+        obs.neutralized = true;
+        spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 16);
+        mostrarBanner("GOLPE DE ESPADIM! +80", "perk", "⚔️");
+        score += 80;
+        return;
+      }
+
+      // Montado na Onça ou Invencível
+      if (renan.isInvincible()) {
+        obs.neutralized = true;
+        spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 14);
+        score += 75;
+        mostrarBanner("ATROPELADO PELA ONÇA! +75", "perk", "🐆");
+        return;
+      }
+
+      // Verificação de Stomp (pulo na cabeça)
+      const isStomp = renan.vy > 0 && (renan.y + renan.h - renan.vy <= obs.y + 26);
+
+      if (obs instanceof JornalistaObstacle) {
+        if (isStomp) {
+          renan.vy = -8.8;
+          obs.neutralize();
+          diapersPlaced += 5;
+          score += 150;
+          mostrarBanner("+5 FRALDAS! LARGA O MICROFONE!", "reward", "🎤");
+
+          // Drone extra surge após atraso mínimo seguro de 0.9s
+          setTimeout(() => {
+            if (gameState === STATE.PLAYING && obstacles.length < 4) {
+              obstacles.push(new DroneObstacle(V_WIDTH + 60, 420));
+            }
+          }, 900);
+          return;
+        } else {
+          mostrarBanner("E O FEMINICÍDIO, CANDIDATO?", "danger", "📢");
+        }
+      } else if (obs instanceof ExMblObstacle) {
+        if (isStomp) {
+          renan.vy = -8.6;
+          obs.neutralized = true;
+          diapersPlaced += 2;
+          score += 100;
+          mostrarBanner("+2 FRALDAS! DISSIDENTE NEUTRALIZADO", "reward", "👶");
+          return;
+        } else {
+          // Lateral perde 1 fralda
+          if (diapersPlaced > 0) diapersPlaced--;
+          mostrarBanner("PERDEU 1 FRALDA! TRAIDOR!", "danger", "⚠️");
+          obs.neutralized = true;
+          cameraShake = 4;
+          return;
+        }
+      } else if (obs instanceof McLatrocinioObstacle) {
+        if (isStomp) {
+          renan.vy = -9;
+          obs.neutralized = true;
+          score += 100;
+          handcuffs++;
+          prisonersHeld++;
+          mostrarBanner("PRENDEU! +100 PTS +1 ALGEMA", "reward", "⛓️");
+
+          // Militante surge após atraso seguro de 1.1s
+          setTimeout(() => {
+            if (gameState === STATE.PLAYING && obstacles.length < 4) {
+              obstacles.push(new MilitanteChaser(-40));
+              mostrarBanner("SOLTA ELE! MILITANTE CHEGANDO", "danger", "🚩");
+            }
+          }, 1100);
+          return;
+        } else {
+          mostrarBanner("ÃHN! ATROPELADO PELO MC", "danger", "💥");
+        }
+      } else if (obs instanceof LadraoObstacle) {
+        if (isStomp) {
+          renan.vy = -8.6;
+          obs.neutralized = true;
+          diapersPlaced += 1;
+          handcuffs++;
+          prisonersHeld++;
+          thiefSquadCaught++;
+          score += 60;
+          mostrarBanner("+1 FRALDA +1 ALGEMA!", "reward", "📱");
+
+          if (thiefSquadCaught >= 3) {
+            thiefSquadActive = false;
+            score += 150;
+            mostrarBanner("QUADRILHA DESMANTELADA! +150", "reward", "🏆");
+
+            setTimeout(() => {
+              if (gameState === STATE.PLAYING && obstacles.length < 4) {
+                obstacles.push(new MilitanteChaser(-40));
+                mostrarBanner("SOLTA ELE! MILITANTE CHEGANDO", "danger", "🚩");
+              }
+            }, 1000);
+          }
+          return;
+        }
+      } else if (obs instanceof MilitanteChaser) {
+        if (isStomp) {
+          renan.vy = -8.6;
+          obs.neutralized = true;
+          diapersPlaced += 2;
+          score += 80;
+          mostrarBanner("+2 FRALDAS! MILITANTE NEUTRALIZADA", "reward", "⭐");
+
+          setTimeout(() => {
+            if (gameState === STATE.PLAYING && obstacles.length < 4) {
+              obstacles.push(new DroneObstacle(V_WIDTH + 60, 420));
+            }
+          }, 900);
+          return;
+        } else {
+          if (prisonersHeld > 0) {
+            prisonersHeld--;
+            if (handcuffs > 0) handcuffs--;
+            score = Math.max(0, score - 60);
+            mostrarBanner("PRESO LIBERTADO PELA MILITANTE!", "danger", "🚩");
+          } else {
+            mostrarBanner("PETISTA! TRAIDOR!", "danger", "🚩");
+          }
+          obs.neutralized = true;
+          cameraShake = 4;
+          return;
+        }
+      } else if (obs instanceof DroneObstacle) {
+        mostrarBanner("MACHISTA! -40 PONTOS", "danger", "🚁");
+        score = Math.max(0, score - 40);
+        obs.neutralized = true;
+        cameraShake = 5;
+        return;
+      } else if (obs instanceof TogaObstacle) {
+        if (diapersPlaced > 0) diapersPlaced--;
+        mostrarBanner("PERDEU 1 FRALDA! TOGA INDEFERIDO", "danger", "⚖️");
+
+        if (hasShield) {
+          hasShield = false;
+          mostrarBanner("ESCUDO ABSORVEU O IMPACTO!", "perk", "🛡️");
+          return;
+        }
+        triggerGameOver("Barrado pela Toga do Supremo!");
+        return;
+      }
+
+      // Escudo absorve impacto lateral fatal
+      if (hasShield) {
+        hasShield = false;
+        obs.neutralized = true;
+        mostrarBanner("ESCUDO ABSORVEU O IMPACTO!", "perk", "🛡️");
+        cameraShake = 6;
+        return;
+      }
+
+      triggerGameOver("Debate encerrado por colisão!");
+    }
+
+    // --- SPAWNER PROGRESSIVO POR TEMPO DE CORRIDA (0-15s, 15-40s, 40s+) ---
+    // NUNCA spawna 2 obstáculos na mesma posição X
+    function spawnNextFeature() {
+      const spawnX = V_WIDTH + 50;
+
+      // Garante distância segura de qualquer entidade já presente na ponta direita
+      for (const obs of obstacles) {
+        if (Math.abs(obs.x - spawnX) < 140) return;
+      }
+      for (const p of pulpits) {
+        if (Math.abs(p.x - spawnX) < 140) return;
+      }
+
+      // Distribuição por tempo de jogo:
+      // FASE 1 (0-15s): Apenas tipos simples (Púlpito, EX-MBL, LADRÃO isolado, TOGA)
+      if (gameTime < 15) {
+        const r = Math.random();
+        if (r < 0.40) {
+          pulpits.push(createNextPulpit(spawnX));
+        } else if (r < 0.65) {
+          obstacles.push(new ExMblObstacle(spawnX));
+        } else if (r < 0.85) {
+          obstacles.push(new LadraoObstacle(spawnX, 1));
+        } else {
+          obstacles.push(new TogaObstacle(spawnX));
+        }
+        return;
+      }
+
+      // FASE 2 (15-40s): Acrescenta MC Latrocínio e DRONE do Cury
+      if (gameTime < 40) {
+        const r = Math.random();
+        if (r < 0.28) {
+          pulpits.push(createNextPulpit(spawnX));
+        } else if (r < 0.46) {
+          obstacles.push(new ExMblObstacle(spawnX));
+        } else if (r < 0.62) {
+          obstacles.push(new McLatrocinioObstacle(spawnX));
+        } else if (r < 0.76) {
+          obstacles.push(new DroneObstacle(spawnX, 410));
+        } else if (r < 0.88) {
+          obstacles.push(new LadraoObstacle(spawnX, 1));
+        } else {
+          obstacles.push(new TogaObstacle(spawnX));
+        }
+        return;
+      }
+
+      // FASE 3 (Após 40s): Todos os tipos, incluindo Jornalista e minichefia de ladrões
+      const r = Math.random();
+      if (r < 0.24) {
+        pulpits.push(createNextPulpit(spawnX));
+      } else if (r < 0.38) {
+        obstacles.push(new JornalistaObstacle(spawnX));
+      } else if (r < 0.52) {
+        obstacles.push(new McLatrocinioObstacle(spawnX));
+      } else if (r < 0.64) {
+        obstacles.push(new DroneObstacle(spawnX, 410));
+      } else if (r < 0.76 && !thiefSquadActive && obstacles.length <= 1) {
+        // Trio de ladrões bem espaçado
+        thiefSquadActive = true;
+        thiefSquadCount = 3;
+        thiefSquadCaught = 0;
+        obstacles.push(new LadraoObstacle(spawnX, 1));
+        obstacles.push(new LadraoObstacle(spawnX + 90, 2));
+        obstacles.push(new LadraoObstacle(spawnX + 180, 3));
+      } else if (r < 0.88) {
+        obstacles.push(new ExMblObstacle(spawnX));
+      } else {
+        obstacles.push(new TogaObstacle(spawnX));
+      }
+    }
+
+    function spawnCollectible(x) {
+      const pRoll = Math.random();
+      let type = 'valete';
+
+      // Bandeira imperial MUITO rara (4%); Clássica comum; Onça rara
+      if (pRoll < 0.04) {
+        type = 'imperial';
+      } else if (pRoll < 0.12) {
+        type = 'onca';
+      } else if (pRoll < 0.26) {
+        type = 'livro';
+      } else if (pRoll < 0.42) {
+        type = 'espadim';
+      } else if (pRoll < 0.58) {
+        type = 'broche';
+      } else if (pRoll < 0.78) {
+        type = 'classica';
+      } else if (pRoll < 0.90) {
+        type = 'algema';
+      } else {
+        type = 'valete';
+      }
+
+      collectibles.push(new CollectibleItem(x, GROUND_Y - 100, type));
+    }
+
+    function updateHudDisplay() {
+      document.getElementById('hud-diapers').textContent = diapersPlaced;
+      document.getElementById('hud-score').textContent = Math.floor(score);
+      document.getElementById('hud-handcuffs').textContent = handcuffs;
+
+      const currentRank = getRankByScore(score);
+      document.getElementById('hud-rank').textContent = currentRank.title;
+
+      // Multiplicador ativo
+      const multEl = document.getElementById('hud-mult');
+      const multVal = getActiveMultiplier();
+      if (multVal > 1) {
+        multEl.style.display = 'inline-flex';
+        multEl.textContent = `x${multVal}`;
+      } else {
+        multEl.style.display = 'none';
+      }
+
+      // Status Perk ativo
+      const perkEl = document.getElementById('hud-perk-active');
+      if (oncaRidingTimer > 0) {
+        perkEl.style.display = 'inline-flex';
+        perkEl.textContent = 'ONÇA PINTADA';
+      } else if (imperialModeTimer > 0) {
+        perkEl.style.display = 'inline-flex';
+        perkEl.textContent = 'MODO IMPERIAL';
+      } else if (bookInvincibleTimer > 0) {
+        perkEl.style.display = 'inline-flex';
+        perkEl.textContent = 'LIVRO AMARELO';
+      } else if (hasShield) {
+        perkEl.style.display = 'inline-flex';
+        perkEl.textContent = 'ESCUDO R14';
+      } else if (hasSwordStrike) {
+        perkEl.style.display = 'inline-flex';
+        perkEl.textContent = 'ESPADIM';
+      } else {
+        perkEl.style.display = 'none';
+      }
+
+      // Status Minichefia Presos n/3
+      const squadEl = document.getElementById('hud-squad');
+      if (thiefSquadActive) {
+        squadEl.style.display = 'inline-flex';
+        squadEl.textContent = `PRESOS: ${thiefSquadCaught}/3`;
+      } else {
+        squadEl.style.display = 'none';
+      }
+    }
+
+    function checkPulpitCollision(p) {
+      // Hitbox do Renan
+      const rx = renan.x + 5;
+      const ry = renan.y + 6;
+      const rw = renan.w - 10;
+      const rh = renan.h - 6;
+
+      const px = p.x;
+      const py = p.y;
+      const pw = p.w;
+      const ph = p.h;
+
+      if (rx + rw > px && rx < px + pw && ry + rh > py && ry < py + ph) {
+        const isLandingOnTop = (renan.vy >= 0) && (renan.y + renan.h - renan.vy <= py + 24);
+
+        if (isLandingOnTop) {
+          renan.y = py - renan.h;
+          renan.vy = 0;
+          renan.isGrounded = true;
+          renan.isFastFalling = false;
+          renan.currentPlatform = p;
+
+          if (!p.hasDiaper) {
+            p.hasDiaper = true;
+            p.diaperScale = 1.4;
+            diapersPlaced++;
+            score += 100;
+            cameraShake = 3;
+            audio.playDiaperPlaced();
+
+            // Mensagem oficial no BANNER do topo com leitura impecável
+            const shoutText = CANDIDATE_INSULTS[p.candidateName] || `${p.candidateName} FUJÃO`;
+            mostrarBanner(shoutText, "pulpit", "👶");
+
+            freezeTimer = 0.22;
+            spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
+            spawnParticles(p.x + p.w / 2, p.y + 4, '#ffd400', 10);
+            addFloatingText(p.x + p.w / 2, p.y - 30, "+100 FRALDA!", '#ffd400');
+          }
+        } else {
+          triggerGameOver(`Tropeçou no púlpito de ${p.candidateName}!`);
+        }
+      }
+    }
+
+    function checkAABB(x1, y1, w1, h1, x2, y2, w2, h2) {
+      return (x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2);
+    }
+
+    // --- RENDERIZAÇÃO DO AMBIENTE ---
+    function drawStudioBackground() {
+      // Fundo azul-marinho sólido e uniforme na cor exata #0f1f3d (RGB 15, 31, 61),
+      // idêntico à cor de fundo dos novos sprites para camuflagem e fusão perfeita 1:1.
+      // Sem gradientes, vinhetas ou luzes que possam revelar o contorno retangular do sprite.
+      ctx.fillStyle = '#0f1f3d';
+      ctx.fillRect(0, 0, V_WIDTH, GROUND_Y);
+
+      // CHÃO DO PALCO DO DEBATE
+      // Linha dourada delimitadora do piso de corrida
+      ctx.strokeStyle = '#ffd400';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, GROUND_Y);
+      ctx.lineTo(V_WIDTH, GROUND_Y);
+      ctx.stroke();
+
+      // Base do tablado (abaixo do chão por onde o personagem corre)
+      ctx.fillStyle = '#0b162c';
+      ctx.fillRect(0, GROUND_Y, V_WIDTH, V_HEIGHT - GROUND_Y);
+
+      // Marcações sutis de passos no piso do estúdio
+      ctx.strokeStyle = 'rgba(255, 212, 0, 0.12)';
+      ctx.lineWidth = 2;
+      const offset = (distanceCovered * 1.2) % 40;
+      for (let x = -offset; x < V_WIDTH; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND_Y + 14);
+        ctx.lineTo(x + 18, GROUND_Y + 14);
+        ctx.stroke();
+      }
+    }
+
+    // --- DESENHO DO SISTEMA DE BANNER NO TOPO DO CANVAS (70% LARGURA, 14% ALTURA, FONTE 20PX+) ---
+    function drawActiveBanner() {
+      if (!activeBanner) return;
+
+      ctx.save();
+      const bW = Math.round(V_WIDTH * 0.82);
+      const bH = Math.round(V_HEIGHT * 0.12);
+      const bX = Math.round((V_WIDTH - bW) / 2);
+      const bY = 56; // Logo abaixo da barra de HUD
+
+      // Animação de fade-in e fade-out
+      let alpha = 1;
+      if (activeBanner.timer < 0.4) {
+        alpha = Math.max(0, activeBanner.timer / 0.4);
+      } else if (activeBanner.timer > activeBanner.duration - 0.2) {
+        alpha = Math.max(0, (activeBanner.duration - activeBanner.timer) / 0.2);
+      }
+      ctx.globalAlpha = alpha;
+
+      // Fundo arredondado escuro translúcido #0f1f3dcc
+      ctx.fillStyle = 'rgba(15, 31, 61, 0.94)';
+      ctx.strokeStyle = '#ffd400';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.roundRect(bX, bY, bW, bH, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      // Sombra e destaque
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 10;
+
+      // Ícone + Texto em negrito grande (mínimo 20px com contorno preto de 4px)
+      const cx = bX + bW / 2;
+      const cy = bY + bH / 2;
+
+      ctx.font = '900 20px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Contorno preto de 4px
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 4;
+      ctx.strokeText(`${activeBanner.icone} ${activeBanner.texto}`, cx, cy);
+
+      // Cor amarela #ffd400 de alto contraste
+      ctx.fillStyle = '#ffd400';
+      ctx.fillText(`${activeBanner.icone} ${activeBanner.texto}`, cx, cy);
+
+      ctx.restore();
+    }
+
+    function render() {
+      ctx.save();
+
+      // Tremor de tela sutil
+      if (cameraShake > 0) {
+        const shakeX = (Math.random() - 0.5) * cameraShake * 2;
+        const shakeY = (Math.random() - 0.5) * cameraShake * 2;
+        ctx.translate(shakeX, shakeY);
+      }
+
+      // Fundo e Palco
+      drawStudioBackground();
+
+      // Púlpitos
+      pulpits.forEach(p => p.draw());
+
+      // Coletáveis (Perks & Bandeiras)
+      collectibles.forEach(c => c.draw());
+
+      // Obstáculos e Inimigos
+      obstacles.forEach(o => o.draw());
+
+      // Renan
+      renan.draw();
+
+      // Partículas
+      particles.forEach(pt => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, pt.life);
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Textos Flutuantes de Pontuação
+      floatingTexts.forEach(ft => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.life);
+        ctx.fillStyle = ft.color;
+        ctx.font = '900 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      });
+
+      // BANNER PRINCIPAL DE AVISOS NO TOPO
+      drawActiveBanner();
+
+      ctx.restore();
+    }
+
+    // --- GAME LOOP (ROBUSTO CONTRA CONGELAMENTO) ---
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      // Se timestamp não for numérico, recorre a performance.now()
+      if (!now || isNaN(now) || !isFinite(now)) {
+        now = performance.now();
+      }
+
+      // Delta time clamp estrito entre 0 e 50ms (0.05s); padrão 16.67ms se inválido
+      let rawDt = (now - lastTime) / 1000;
+      if (isNaN(rawDt) || !isFinite(rawDt) || rawDt <= 0) {
+        rawDt = 0.01667;
+      }
+      const dt = Math.min(Math.max(rawDt, 0.001), 0.05);
+      lastTime = now;
+
+      // Execução protegida por try/catch para que falhas transitórias não matem o loop
+      try {
+        if (gameState === STATE.PLAYING) {
+          updateWorld(dt);
+        }
+        render();
+      } catch (loopErr) {
+        console.error("Erro no ciclo de atualização/renderização:", loopErr);
+      }
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // --- TELAS E TRANSIÇÕES ---
+    const overlayStart = document.getElementById('overlay-start');
+    const overlayGameOver = document.getElementById('overlay-gameover');
+    const btnPlay = document.getElementById('btn-play');
+    const btnReplay = document.getElementById('btn-replay');
+    const btnShare = document.getElementById('btn-share');
+    const soundBtn = document.getElementById('sound-btn');
+    const soundOn = document.getElementById('sound-icon-on');
+    const soundOff = document.getElementById('sound-icon-off');
+    const shareToast = document.getElementById('share-toast');
+
+    function startGame() {
+      audio.init();
+      resetWorld();
+      gameState = STATE.PLAYING;
+      overlayStart.classList.add('hidden');
+      overlayGameOver.classList.add('hidden');
+    }
+
+    function triggerGameOver(reasonText) {
+      if (gameState === STATE.GAMEOVER) return;
+      gameState = STATE.GAMEOVER;
+      audio.playHit();
+      cameraShake = 12;
+
+      // Salva recorde
+      const finalScore = Math.floor(score);
+      lastFinalScore = finalScore;
+      lastGameTime = gameTime;
+
+      if (finalScore > highscore) {
+        highscore = finalScore;
+        localStorage.setItem('renan_mission_best', highscore.toString());
+      }
+
+      // Obtém a Patente conquistada
+      const rank = getRankByScore(finalScore);
+
+      // Preenche dados da tela final
+      document.getElementById('go-time-label').textContent = `Sobreviveu por ${gameTime.toFixed(1)}s`;
+      document.getElementById('go-score').textContent = finalScore;
+      document.getElementById('go-diapers').textContent = diapersPlaced;
+      document.getElementById('go-obstacles').textContent = obstaclesCleared;
+      document.getElementById('go-record').textContent = highscore;
+
+      // Exibe a Patente com destaque visual
+      const rankBoxEl = document.getElementById('go-rank-box');
+      const rankTitleEl = document.getElementById('go-rank-title');
+      rankTitleEl.textContent = rank.title;
+
+      if (rank.isGold) {
+        rankBoxEl.classList.add('gold-tier');
+        rankTitleEl.classList.add('gold-tier');
+      } else {
+        rankBoxEl.classList.remove('gold-tier');
+        rankTitleEl.classList.remove('gold-tier');
+      }
+
+      setTimeout(() => {
+        overlayGameOver.classList.remove('hidden');
+      }, 350);
+    }
+
+    btnPlay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startGame();
+    });
+
+    btnReplay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startGame();
+    });
+
+    // --- COMPARTILHAMENTO E EXPORTAÇÃO DE CARD ---
+    const btnSaveImage = document.getElementById('btn-save-image');
+
+    btnShare.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const rank = getRankByScore(lastFinalScore);
+      const shareUrl = window.location.href;
+      const shareText = `Fiz ${lastFinalScore} pontos (${lastGameTime.toFixed(1)}s) e alcancei a patente "${rank.title}" no Renan em Missão! Consegue me superar? ${shareUrl}`;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: "Renan em Missão: Corrida do Livro Amarelo",
+            text: shareText,
+            url: shareUrl
+          });
+          return;
+        } catch (err) {
+          // Usuário cancelou ou navegador barrou, segue para wa.me/fallback
+        }
+      }
+
+      // Fallback oficial via WhatsApp e Área de Transferência
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+      window.open(waUrl, '_blank');
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareText).then(() => {
+          showShareToast("Link e pontuação prontos para envio!");
+        });
+      }
+    });
+
+    // Baixar Card de Desempenho como Imagem PNG via Canvas (Protegido contra crash)
+    btnSaveImage.addEventListener('click', (e) => {
+      e.stopPropagation();
+      try {
+        const rank = getRankByScore(lastFinalScore);
+        const cardCanvas = document.createElement('canvas');
+        cardCanvas.width = 600;
+        cardCanvas.height = 420;
+        const cCtx = cardCanvas.getContext('2d');
+        if (!cCtx) throw new Error("Contexto 2D indisponível");
+
+        // Fundo Azul-Marinho Oficial #0f1f3d
+        cCtx.fillStyle = '#0f1f3d';
+        cCtx.fillRect(0, 0, 600, 420);
+
+        // Borda Dourada Imperial
+        cCtx.strokeStyle = '#ffd400';
+        cCtx.lineWidth = 8;
+        cCtx.strokeRect(12, 12, 576, 396);
+
+        // Título Oficial
+        cCtx.fillStyle = '#ffd400';
+        cCtx.font = '900 28px sans-serif';
+        cCtx.textAlign = 'center';
+        cCtx.fillText('RENAN EM MISSÃO: O LIVRO AMARELO', 300, 58);
+
+        // Patente
+        cCtx.fillStyle = '#ffffff';
+        cCtx.font = 'bold 16px sans-serif';
+        cCtx.fillText('PATENTE ALCANÇADA:', 300, 105);
+
+        cCtx.fillStyle = '#ffd400';
+        cCtx.font = '900 24px sans-serif';
+        cCtx.fillText(rank.title.toUpperCase(), 300, 140);
+
+        // Estatísticas
+        cCtx.fillStyle = '#182747';
+        cCtx.fillRect(60, 175, 480, 140);
+        cCtx.strokeStyle = 'rgba(255,212,0,0.3)';
+        cCtx.strokeRect(60, 175, 480, 140);
+
+        cCtx.fillStyle = '#94a3b8';
+        cCtx.font = 'bold 14px sans-serif';
+        cCtx.fillText('PONTOS', 140, 210);
+        cCtx.fillText('TEMPO', 300, 210);
+        cCtx.fillText('FRALDAS', 460, 210);
+
+        cCtx.fillStyle = '#ffd400';
+        cCtx.font = '900 32px sans-serif';
+        cCtx.fillText(lastFinalScore.toString(), 140, 260);
+        cCtx.fillText(`${lastGameTime.toFixed(1)}s`, 300, 260);
+        cCtx.fillText(diapersPlaced.toString(), 460, 260);
+
+        // Frase Desafio
+        cCtx.fillStyle = '#ffffff';
+        cCtx.font = 'italic 16px sans-serif';
+        cCtx.fillText('"Debate sem fujões — Quem tem missão não arrega!"', 300, 360);
+
+        // Chamada única e protegida para toDataURL
+        const dataUrl = cardCanvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.download = `renan-em-missao-recorde-${lastFinalScore}.png`;
+        a.href = dataUrl;
+        a.click();
+        showShareToast("Card baixado com sucesso!");
+      } catch (err) {
+        console.warn("Falha ao exportar imagem canvas, acionando fallback:", err);
+        showShareToast("Card compartilhado em texto!");
+      }
+    });
+
+    function showShareToast(msg = "Copiado para a área de transferência!") {
+      shareToast.textContent = msg;
+      shareToast.classList.add('show');
+      setTimeout(() => {
+        shareToast.classList.remove('show');
+      }, 2600);
+    }
+
+    // Toggle de som
+    soundBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audio.enabled = !audio.enabled;
+      if (audio.enabled) {
+        audio.init();
+        soundOn.style.display = 'block';
+        soundOff.style.display = 'none';
+      } else {
+        soundOn.style.display = 'none';
+        soundOff.style.display = 'block';
+      }
+    });
+
+    // --- RESPONSIVIDADE CANVAS (Ajuste nítido com DevicePixelRatio) ---
+    function resizeCanvas() {
+      const wrapper = document.getElementById('game-wrapper');
+      const rect = wrapper.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      // Resolução nativa em pixels reais
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      // Escala para coordenar com o sistema virtual V_WIDTH x V_HEIGHT
+      const scaleX = canvas.width / V_WIDTH;
+      const scaleY = canvas.height / V_HEIGHT;
+      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(resizeCanvas, 150);
+    });
+
+    // Iniciação
+    resizeCanvas();
+    resetWorld();
+    requestAnimationFrame(gameLoop);
+  </script>
+<script>
+/* Skip artifact shell — fixed helpers served beside every artifact. */
+(function () {
+  "use strict";
+
+  var fmt = {
+    num: function (v, opts) { return new Intl.NumberFormat("pt-BR", opts || {}).format(v); },
+    brl: function (v) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v); },
+    pct: function (v) { return new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 }).format(v); }
+  };
+
+  // axisFmt keeps axis tick labels short (compact notation) so long values
+  // (e.g. full BRL amounts) never clip against the plot edge.
+  function axisFmt(v) {
+    return fmt.num(v, { notation: "compact", maximumFractionDigits: 1 });
+  }
+
+  // format accepts a function OR one of the fmt names ("num" | "brl" | "pct").
+  function coerceFormat(spec) {
+    if (typeof spec === "function") return spec;
+    if (typeof spec === "string" && fmt[spec]) return fmt[spec];
+    return function (v) { return fmt.num(v); };
+  }
+
+  function accent() {
+    return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#2563eb";
+  }
+  function mutedColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue("--text-muted").trim() || "#5b6472";
+  }
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function frame(el, w, h) {
+    var svg = svgEl("svg", { viewBox: "0 0 " + w + " " + h, role: "img" });
+    el.innerHTML = "";
+    el.appendChild(svg);
+    return svg;
+  }
+
+  // maxOf guards the axis scale: empty values would give -Infinity (truthy,
+  // so "|| 1" can't catch it) and a non-positive max would flip the chart.
+  function maxOf(values) {
+    var m = values.length ? Math.max.apply(null, values) : 0;
+    return m > 0 ? m : 1;
+  }
+
+  // bar(el, {labels:[], values:[], color?, format?}) — vertical bar chart.
+  function bar(el, cfg) {
+    var W = 640, H = 280, padL = 46, padB = 30, padT = 12;
+    var svg = frame(el, W, H);
+    var max = maxOf(cfg.values);
+    var n = cfg.values.length;
+    var plotW = W - padL - 12, plotH = H - padT - padB;
+    var step = plotW / n, bw = Math.min(step * 0.62, 64);
+    var color = cfg.color || accent();
+    var f = coerceFormat(cfg.format);
+    for (var g = 0; g <= 4; g++) {
+      var gy = padT + plotH - (plotH * g) / 4;
+      svg.appendChild(svgEl("line", { x1: padL, y1: gy, x2: W - 12, y2: gy, stroke: "currentColor", "stroke-opacity": 0.08 }));
+      var lbl = svgEl("text", { x: padL - 8, y: gy + 4, "text-anchor": "end", "font-size": 10, fill: mutedColor() });
+      lbl.textContent = axisFmt((max * g) / 4);
+      svg.appendChild(lbl);
+    }
+    cfg.values.forEach(function (v, i) {
+      var bh = Math.max(0, (v / max) * plotH);
+      var x = padL + i * step + (step - bw) / 2;
+      var y = padT + plotH - bh;
+      var r = svgEl("rect", { x: x, y: y, width: bw, height: bh, rx: 4, fill: color });
+      var t = svgEl("title", {});
+      t.textContent = cfg.labels[i] + ": " + f(v);
+      r.appendChild(t);
+      svg.appendChild(r);
+      var tx = svgEl("text", { x: x + bw / 2, y: H - 10, "text-anchor": "middle", "font-size": 11, fill: mutedColor() });
+      tx.textContent = cfg.labels[i];
+      svg.appendChild(tx);
+    });
+  }
+
+  // line(el, {labels:[], values:[], color?, format?}) — single-series line.
+  function line(el, cfg) {
+    var W = 640, H = 280, padL = 46, padB = 30, padT = 12;
+    var svg = frame(el, W, H);
+    var max = maxOf(cfg.values);
+    var n = cfg.values.length;
+    var plotW = W - padL - 16, plotH = H - padT - padB;
+    var color = cfg.color || accent();
+    var f = coerceFormat(cfg.format);
+    for (var g = 0; g <= 4; g++) {
+      var gy = padT + plotH - (plotH * g) / 4;
+      svg.appendChild(svgEl("line", { x1: padL, y1: gy, x2: W - 16, y2: gy, stroke: "currentColor", "stroke-opacity": 0.08 }));
+      var lbl = svgEl("text", { x: padL - 8, y: gy + 4, "text-anchor": "end", "font-size": 10, fill: mutedColor() });
+      lbl.textContent = axisFmt((max * g) / 4);
+      svg.appendChild(lbl);
+    }
+    var pts = cfg.values.map(function (v, i) {
+      var x = padL + (n === 1 ? plotW / 2 : (plotW * i) / (n - 1));
+      var y = padT + plotH - (v / max) * plotH;
+      return [x, y];
+    });
+    var d = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+    svg.appendChild(svgEl("path", { d: d, fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" }));
+    pts.forEach(function (p, i) {
+      var c = svgEl("circle", { cx: p[0], cy: p[1], r: 3.5, fill: color });
+      var t = svgEl("title", {});
+      t.textContent = cfg.labels[i] + ": " + f(cfg.values[i]);
+      c.appendChild(t);
+      svg.appendChild(c);
+      var tx = svgEl("text", { x: p[0], y: H - 10, "text-anchor": "middle", "font-size": 11, fill: mutedColor() });
+      tx.textContent = cfg.labels[i];
+      svg.appendChild(tx);
+    });
+  }
+
+  // donut(el, {labels:[], values:[], colors?}) — donut with center total.
+  function donut(el, cfg) {
+    var W = 320, H = 280, cx = W / 2, cy = H / 2, R = 92, r = 58;
+    var svg = frame(el, W, H);
+    var total = cfg.values.reduce(function (a, b) { return a + b; }, 0) || 1;
+    var palette = cfg.colors || [accent(), "#1baf7a", "#eda100", "#e34948", "#4a3aa7", "#e87ba4"];
+    var a0 = -Math.PI / 2;
+    cfg.values.forEach(function (v, i) {
+      var a1 = a0 + (v / total) * Math.PI * 2;
+      var large = a1 - a0 > Math.PI ? 1 : 0;
+      var p = ["M", cx + R * Math.cos(a0), cy + R * Math.sin(a0),
+        "A", R, R, 0, large, 1, cx + R * Math.cos(a1), cy + R * Math.sin(a1),
+        "L", cx + r * Math.cos(a1), cy + r * Math.sin(a1),
+        "A", r, r, 0, large, 0, cx + r * Math.cos(a0), cy + r * Math.sin(a0), "Z"].join(" ");
+      var path = svgEl("path", { d: p, fill: palette[i % palette.length] });
+      var t = svgEl("title", {});
+      t.textContent = cfg.labels[i] + ": " + fmt.num(v) + " (" + fmt.pct(v / total) + ")";
+      path.appendChild(t);
+      svg.appendChild(path);
+      a0 = a1;
+    });
+    var center = svgEl("text", { x: cx, y: cy + 5, "text-anchor": "middle", "font-size": 20, "font-weight": 650, fill: "currentColor" });
+    center.textContent = fmt.num(total);
+    svg.appendChild(center);
+  }
+
+  window.skipShell = { fmt: fmt };
+  window.skipChart = { bar: bar, line: line, donut: donut };
+})();
+
+</script>
+</body>
+</html>
