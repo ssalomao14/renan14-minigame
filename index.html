@@ -666,7 +666,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       <div class="start-art-container">
         <div class="start-art-glow"></div>
         <img class="start-art-img" 
-             src="https://generated-images.adapta.one/ssalomao13%40gmail.com/01a087b4-4f42-753e-8ad2-1d897fb7eab2/2026-09-09T22-59-13-810Z_Original_user_intent_Tool_generated_image_directi.png" 
+             src="./assets/capa-renan.png" 
              alt="Renan em Missão — Arte Conceitual Oficial"
              onerror="this.style.display='none'; const fb = document.getElementById('start-art-fallback'); if(fb) fb.style.display='flex';">
         <div id="start-art-fallback" style="display:none; position:relative; z-index:2; height:180px; width:100%; border:1.5px solid rgba(255,212,0,0.4); border-radius:14px; background:#0b1528; align-items:center; justify-content:center; flex-direction:column; padding:16px;">
@@ -987,32 +987,30 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     let nextCandidateIndex = 0;
 
     // --- SISTEMA DE CARREGAMENTO EM 3 CAMADAS + CHROMA-KEY (#00FF00) + FALLBACK PROCEDURAL ---
-    const ART_BASE = "https://generated-images.adapta.one/ssalomao13%40gmail.com/01a087b4-4f42-753e-8ad2-1d897fb7eab2/";
-    
     const SPRITE_URLS = {
       // Sprites Oficiais do Renan
-      run1: ART_BASE + "2026-09-10T18-19-22-461Z_Original_user_intent_Tool_generated_image_directi.png",
-      run2: ART_BASE + "2026-09-10T18-19-20-033Z_Original_user_intent_Tool_generated_image_directi.png",
-      run3: ART_BASE + "2026-09-10T18-19-22-352Z_Original_user_intent_Tool_generated_image_directi.png",
-      jump: ART_BASE + "2026-09-10T18-19-20-659Z_Original_user_intent_Tool_generated_image_directi.png",
+      run1: "./assets/renan-correndo1.png",
+      run2: "./assets/renan-correndo2.png",
+      run3: "./assets/renan-correndo3.png",
+      jump: "./assets/renan-pulando.png",
 
       // Obstáculos Integrados
-      jornalista: ART_BASE + "2026-09-10T23-09-18-236Z_Original_user_intent_Brazilian_political_cartoon.png",
-      exmbl: ART_BASE + "2026-09-10T23-09-57-119Z_Original_user_intent_Brazilian_political_cartoon.png",
-      mc: ART_BASE + "2026-09-10T23-16-18-586Z_Original_user_intent_Tool_generated_image_directi.png",
-      ladrao: ART_BASE + "2026-09-10T23-11-16-242Z_Original_user_intent_Brazilian_political_cartoon.png",
-      militante: ART_BASE + "2026-09-10T23-12-05-327Z_Original_user_intent_Brazilian_political_cartoon.png",
-      drone: ART_BASE + "2026-09-10T23-18-44-967Z_Original_user_intent_Brazilian_political_cartoon.png",
-      toga: ART_BASE + "2026-09-10T23-21-11-067Z_Original_user_intent_Tool_generated_image_directi.png",
+      jornalista: "./assets/jornalista.png",
+      exmbl: "./assets/ex-MBL.png",
+      mc: "./assets/MC-Latrocínio.png",
+      ladrao: "./assets/Ladrao.png",
+      militante: "./assets/Militante.png",
+      drone: "./assets/Drone.png",
+      toga: "./assets/Toga.png",
 
       // Perks & Coletáveis
-      onca: ART_BASE + "2026-09-10T23-21-57-341Z_Original_user_intent_Brazilian_political_cartoon.png",
-      espadim: ART_BASE + "2026-09-10T23-27-08-718Z_Original_user_intent_Tool_generated_image_directi.png",
-      valete: ART_BASE + "2026-09-10T23-29-44-841Z_Original_user_intent_Tool_generated_image_directi.png",
-      livro: ART_BASE + "2026-09-10T23-32-50-882Z_Original_user_intent_Tool_generated_image_directi.png",
-      broche: ART_BASE + "2026-09-10T23-38-09-929Z_Original_user_intent_Tool_generated_image_directi.png",
-      classica: ART_BASE + "2026-09-10T23-42-12-355Z_Original_user_intent_Tool_generated_image_directi.png",
-      imperial: ART_BASE + "2026-09-10T23-42-51-394Z_Original_user_intent_Tool_generated_image_directi.png"
+      onca: "./assets/ONCA.png",
+      espadim: "./assets/Espadim.png",
+      valete: "./assets/Carta-Valete.png",
+      livro: "./assets/LivroAmarelo.png",
+      broche: "./assets/broche-r14.png",
+      classica: "./assets/Bandeira-classica.png",
+      imperial: "./assets/Bandeira-Imperial.png"
     };
 
     const loadedSprites = {};
