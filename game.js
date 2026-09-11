@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.1';
+    const GAME_VERSION = '0.1.2';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -220,13 +220,14 @@
     // Câmera com aspecto uniforme (evita distorção)
     const VIEW = { scale: 1, ox: 0, oy: 0 };
     // Cache de valores do HUD para só escrever no DOM quando mudar
-    const hudCache = { diapers: null, score: null, handcuffs: null, rank: null, mult: null, perk: null, squad: null, lives: null };
+    const hudCache = { votes: null, score: null, handcuffs: null, rank: null, mult: null, perk: null, squad: null, lives: null };
 
-    function mostrarBanner(texto, tipo = "info", icone = "⚠️") {
+    function mostrarBanner(texto, tipo = "info", icone = "⚠️", mode = "action") {
       activeBanner = {
         texto,
         tipo,
         icone,
+        mode,
         duration: 2.8,
         timer: 2.8
       };
@@ -275,58 +276,91 @@
       if (alpha <= 0) return;
 
       const cx = V_WIDTH / 2;
-      const cw = 288;
-      const ch = 128;
-      const cy = 210;
+      const cw = 322;
+      const ch = 152;
+      const cy = 222;
+      const tagText = 'INIMIGO NOVO';
+      const pulse = 1 + Math.sin(performance.now() * 0.006) * 0.015;
 
       ctx.save();
+      ctx.globalAlpha = Math.max(0, alpha * 0.62);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
       ctx.globalAlpha = Math.max(0, alpha);
 
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(pulse, pulse);
+      ctx.translate(-cx, -cy);
+
       // Fundo do card
-      ctx.fillStyle = 'rgba(11, 19, 36, 0.96)';
+      ctx.fillStyle = 'rgba(11, 19, 36, 0.97)';
       ctx.strokeStyle = '#ffd400';
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = 'rgba(255,212,0,0.5)';
-      ctx.shadowBlur = 22;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(255,212,0,0.75)';
+      ctx.shadowBlur = 30;
       ctx.beginPath();
       ctx.roundRect(cx - cw / 2, cy - ch / 2, cw, ch, 16);
       ctx.fill();
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Emoji grande
-      ctx.font = '900 44px sans-serif';
+      // Tag superior: rotula o propósito do card (descrição/introdução do inimigo)
+      ctx.font = '900 11px "Arial Black", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(card.emoji, cx, cy - 26);
+      const tagW = Math.round(ctx.measureText(tagText).width + 22);
+      ctx.fillStyle = '#ff5e5e';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(cx - tagW / 2, cy - ch / 2 + 10, tagW, 18, 9);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#081120';
+      ctx.fillText(tagText, cx, cy - ch / 2 + 19);
+
+      // Emoji grande
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+      ctx.shadowBlur = 12;
+      ctx.font = '900 48px sans-serif';
+      ctx.fillText(card.emoji, cx, cy - 34);
+      ctx.shadowBlur = 0;
 
       // Nome do personagem
-      ctx.font = '900 20px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = '900 22px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 4;
-      ctx.strokeText(card.name, cx, cy + 12);
+      ctx.lineWidth = 4.5;
+      ctx.strokeText(card.name, cx, cy + 11);
       ctx.fillStyle = '#ffd400';
-      ctx.fillText(card.name, cx, cy + 12);
+      ctx.fillText(card.name, cx, cy + 11);
 
       // Piada/frase em 1 linha
-      ctx.font = '900 13px "Arial Black", sans-serif';
       let quip = card.quip;
-      let qSize = 13;
+      let qSize = 13.5;
       ctx.font = `900 ${qSize}px "Arial Black", sans-serif`;
-      while (ctx.measureText(quip).width > cw - 28 && qSize > 9) {
-        qSize -= 1;
+      while (ctx.measureText(quip).width > cw - 30 && qSize > 8.5) {
+        qSize -= 0.5;
         ctx.font = `900 ${qSize}px "Arial Black", sans-serif`;
       }
       ctx.fillStyle = '#c6d3ea';
       ctx.fillText(quip, cx, cy + 38);
 
+      // Barra de countdown (tempo restante da introdução)
+      const ratio = Math.max(0, Math.min(1, card.timer / card.duration));
+      ctx.fillStyle = 'rgba(255, 212, 0, 0.18)';
+      ctx.fillRect(cx - 138, cy + ch / 2 - 13, 276, 7);
+      ctx.fillStyle = '#ffd400';
+      ctx.fillRect(cx - 138, cy + ch / 2 - 13, Math.round(276 * ratio), 7);
+
       // Dica de skip piscante
       if (Math.sin(performance.now() * 0.008) > -0.3) {
         ctx.font = '900 9.5px "Arial Black", sans-serif';
         ctx.fillStyle = '#6c84a8';
-        ctx.fillText('PRIMEIRO CONFRONTO — TOQUE PARA PULAR', cx, cy + 58);
+        ctx.fillText('TOQUE PARA PULAR', cx, cy + ch / 2 + 10);
       }
 
+      ctx.restore();
       ctx.restore();
     }
 
@@ -340,7 +374,7 @@
     let machistaFlashTimer = 0;
 
     let score = 0;
-    let diapersPlaced = 0;
+    let votes = 0;
     let obstaclesCleared = 0;
     let handcuffs = 0;
     let gameTime = 0;
@@ -1271,22 +1305,39 @@
     // Balão de fala estilizado (quadro branco, borda escura, rabinho, legível).
     function drawSpeechBubble(x, y, text, name, maxWidth) {
       ctx.save();
-      const maxW = maxWidth || 170;
-      ctx.font = '900 13px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const maxW = maxWidth || 188;
+      const fontFamily = '"Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const padX = 12;
+
+      // Quebra em várias linhas mantendo fonte legível (mín. 11px) — balão cresce, texto não encolhe demais
+      let fontSize = 13;
+      let lines;
+      while (true) {
+        ctx.font = `900 ${fontSize}px ${fontFamily}`;
+        const words = text.split(/\s+/);
+        lines = [];
+        let cur = '';
+        for (const w of words) {
+          const candidate = cur ? cur + ' ' + w : w;
+          if (cur && ctx.measureText(candidate).width > maxW - padX * 2) {
+            lines.push(cur);
+            cur = w;
+          } else {
+            cur = candidate;
+          }
+        }
+        if (cur) lines.push(cur);
+        const widest = Math.max.apply(null, lines.map(l => ctx.measureText(l).width));
+        if (widest <= maxW - padX * 2 || fontSize <= 11) break;
+        fontSize -= 0.5;
+      }
+
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      let measureW = ctx.measureText(text).width;
-      let fontSize = 13;
-      while (measureW > maxW - 20 && fontSize > 9) {
-        fontSize -= 1;
-        ctx.font = `900 ${fontSize}px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-        measureW = ctx.measureText(text).width;
-      }
-
-      const padX = 12;
-      const bw = Math.ceil(measureW + padX * 2);
-      const bh = fontSize + 12;
+      const lineHeight = Math.ceil(fontSize * 1.25);
+      const bw = Math.min(maxW, Math.ceil(Math.max.apply(null, lines.map(l => ctx.measureText(l).width)) + padX * 2));
+      const bh = lines.length * lineHeight + 12;
       const bx = x - bw / 2;
       const by = y - bh;
 
@@ -1313,11 +1364,15 @@
       ctx.stroke();
       ctx.shadowBlur = 0;
 
+      // Texto centralizado linha a linha (evita embolamento)
       ctx.fillStyle = '#0b1528';
-      ctx.fillText(text, x, by + bh / 2 + 0.5);
+      const startY = by + (bh - lines.length * lineHeight) / 2 + lineHeight / 2;
+      lines.forEach((ln, i) => {
+        ctx.fillText(ln, x, startY + i * lineHeight);
+      });
 
       if (name) {
-        ctx.font = '900 8.5px "Arial Black", sans-serif';
+        ctx.font = '900 9.5px "Arial Black", sans-serif';
         ctx.fillStyle = '#6c84a8';
         ctx.fillText(name, x, by - 7);
       }
@@ -1403,7 +1458,7 @@
 
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 10) * 2);
-          entityBubble(this, 'JORNALISTA', 'ONDE ESTÁ O FEMINICÍDIO?');
+          entityBubble(this, 'JORNALISTA', 'E O FEMINICÍDIO?');
         }
         endEntityFrame();
       }
@@ -1466,7 +1521,7 @@
 
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 11) * 2);
-          entityBubble(this, 'EX-MBL', 'MILITANTE OURO!');
+          entityBubble(this, 'EX-MBL', 'DISCULPA, DISCULPA BOLSONARO!');
         }
         endEntityFrame();
       }
@@ -1532,7 +1587,7 @@
 
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 9) * 2);
-          entityBubble(this, 'MC', 'PC PAYPAL!');
+          entityBubble(this, 'MC', 'ÃHN!? ESSE É ARGILOSO!');
         }
         endEntityFrame();
       }
@@ -1596,7 +1651,7 @@
 
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 11) * 2);
-          entityBubble(this, 'LADRÃO', 'MEU CELULAR!');
+          entityBubble(this, 'LADRÃO', 'PASSA O CELULAR!');
         }
         endEntityFrame();
       }
@@ -1621,7 +1676,7 @@
         } else {
           // Perseguidora: corre da esquerda para a direita SEMPRE mais rápido que o scroll
           // (dx = corrente da pista). Net = +persecSpeed px/s no cursor da tela.
-          const persecSpeed = 58;
+          const persecSpeed = 78;
           this.x += (currentSpeedPx + persecSpeed) * dt - dx;
         }
       }
@@ -1747,7 +1802,7 @@
           drawWarningIcon(this.x + this.w / 2, this.y - 12 + Math.sin((this.time || 0) * 2) * 3);
           if (!this.bubbleTimer) this.bubbleTimer = this.bubblePeriod;
           if (this.bubbleTimer > this.bubblePeriod * 0.45 && this.x > -10 && this.x < V_WIDTH + 60) {
-            drawSpeechBubble(this.x + this.w / 2, this.y - 6, 'GRAVA! GRAVA!', 'DRONE');
+            drawSpeechBubble(this.x + this.w / 2, this.y - 6, 'RIVOTRIL!', 'DRONE');
           }
         }
         ctx.restore();
@@ -1994,8 +2049,8 @@
         y,
         text,
         color,
-        life: 1,
-        vy: -1.6
+        life: 1.35,
+        vy: -1.4
       });
     }
 
@@ -2019,17 +2074,22 @@
       spawnGraceTimer = 1.0;
 
       // Zera o cache de HUD para forçar a primeira escrita no DOM
-      hudCache.diapers = null; hudCache.score = null; hudCache.handcuffs = null;
+      hudCache.votes = null; hudCache.score = null; hudCache.handcuffs = null;
       hudCache.rank = null; hudCache.mult = null; hudCache.perk = null; hudCache.squad = null;
       hudCache.lives = null;
 
       lives = MAX_LIVES;
       machistaFlashTimer = 0;
 
+      // Cada corrida reintroduz os personagens: limpa estado de intro (cards do "primeiro confronto")
+      encounteredTypes.clear();
+      activeCard = null;
+      worldTimeScale = 1;
+
       currentSpeedPx = INITIAL_SPEED_PX;
       freezeTimer = 0;
       score = 0;
-      diapersPlaced = 0;
+      votes = 0;
       obstaclesCleared = 0;
       handcuffs = 0;
       gameTime = 0;
@@ -2060,8 +2120,6 @@
       // Púlpito inicial bem à frente para começar com calma
       const firstPulpit = createNextPulpit(V_WIDTH + 180);
       pulpits.push(firstPulpit);
-      // Apresenta a mecânica central logo no início (só no primeiro confronto da sessão)
-      triggerEncounterIntro('Pulpit-' + firstPulpit.candidateName, firstPulpit.candidateName || 'CANDIDATO', CANDIDATE_INSULTS[firstPulpit.candidateName] || 'Pule na cabeça e deixe a fralda!', '👶');
     }
 
     function getActiveMultiplier() {
@@ -2135,7 +2193,7 @@
       const newRank = getRankByScore(score);
       if (newRank.title !== currentRankTier.title) {
         currentRankTier = newRank;
-        mostrarBanner(`PROMOVIDO A ${newRank.title.toUpperCase()}!`, "rank", "🎖️");
+        mostrarBanner(`PROMOVIDO A ${newRank.title.toUpperCase()}!`, "rank", "🎖️", "global");
       }
 
       // Pulo variável
@@ -2330,9 +2388,9 @@
         if (isStomp) {
           renan.vy = -8.8;
           obs.neutralize();
-          diapersPlaced += 5;
+          votes += 5000;
           score += 150;
-          mostrarBanner("+5 FRALDAS! LARGA O MICROFONE!", "reward", "🎤");
+          mostrarBanner("+5.000 VOTOS! LARGA O MICROFONE!", "reward", "🎤");
 
           // Drone extra surge após atraso mínimo seguro de 0.9s (fila do game loop)
           scheduleSpawn(0.9, () => {
@@ -2357,9 +2415,9 @@
         if (isStomp) {
           renan.vy = -8.6;
           obs.neutralized = true;
-          diapersPlaced += 2;
+          votes += 2000;
           score += 100;
-          mostrarBanner("+2 FRALDAS! DISSIDENTE NEUTRALIZADO", "reward", "👶");
+          mostrarBanner("EX-MBL NEUTRALIZADO! +2.000 VOTOS", "reward", "👶");
           return;
         } else {
           // Lateral: perde 1 vida e 1 fralda
@@ -2368,8 +2426,8 @@
           renan.isGrounded = false;
           renan.isFastFalling = false;
           renan.currentPlatform = null;
-          if (diapersPlaced > 0) diapersPlaced--;
-          mostrarBanner("PERDEU 1 FRALDA E 1 VIDA! TRAIDOR!", "danger", "⚠️");
+          if (votes > 0) votes -= 1000;
+          mostrarBanner("PERDEU 1.000 VOTOS E 1 VIDA! TRAIDOR!", "danger", "⚠️");
           obs.neutralized = true;
           cameraShake = 4;
           audio.playHit();
@@ -2383,13 +2441,14 @@
           score += 100;
           handcuffs++;
           prisonersHeld++;
-          mostrarBanner("PRENDEU! +100 PTS +1 ALGEMA", "reward", "⛓️");
+          votes += 2000;
+          mostrarBanner("PRENDEU! +2.000 VOTOS +1 ALGEMA", "reward", "⛓️");
 
           // Militante surge após atraso seguro de 1.1s (fila do game loop)
           scheduleSpawn(1.1, () => {
             if (obstacles.length < 4) {
               obstacles.push(new MilitanteChaser(-40));
-              mostrarBanner("SOLTA ELE! MILITANTE CHEGANDO", "danger", "🚩");
+              mostrarBanner("SOLTA ELE! MILITANTE CHEGANDO", "danger", "🚩", "global");
             }
           });
           return;
@@ -2409,22 +2468,22 @@
         if (isStomp) {
           renan.vy = -8.6;
           obs.neutralized = true;
-          diapersPlaced += 1;
+          votes += 1000;
           handcuffs++;
           prisonersHeld++;
           thiefSquadCaught++;
           score += 60;
-          mostrarBanner("+1 FRALDA +1 ALGEMA!", "reward", "📱");
+          mostrarBanner("+1.000 VOTOS +1 ALGEMA!", "reward", "📱");
 
           if (thiefSquadCaught >= 3) {
             thiefSquadActive = false;
             score += 150;
-            mostrarBanner("QUADRILHA DESMANTELADA! +150", "reward", "🏆");
+            mostrarBanner("QUADRILHA DESMANTELADA! +150", "reward", "🏆", "global");
 
             scheduleSpawn(1.0, () => {
               if (obstacles.length < 4) {
                 obstacles.push(new MilitanteChaser(-40));
-                mostrarBanner("SOLTA ELE! MILITANTE CHEGANDO", "danger", "🚩");
+                mostrarBanner("SOLTA ELE! MILITANTE CHEGANDO", "danger", "🚩", "global");
               }
             });
           }
@@ -2434,9 +2493,9 @@
         if (isStomp) {
           renan.vy = -8.6;
           obs.neutralized = true;
-          diapersPlaced += 2;
+          votes += 2000;
           score += 80;
-          mostrarBanner("+2 FRALDAS! MILITANTE NEUTRALIZADA", "reward", "⭐");
+          mostrarBanner("+2.000 VOTOS! MILITANTE NEUTRALIZADA", "reward", "⭐");
 
           scheduleSpawn(0.9, () => {
             if (obstacles.length < 4) {
@@ -2494,10 +2553,11 @@
           renan.vy = -8.6;
           obs.neutralized = true;
           score += 120;
+          votes += 4000;
           cameraShake = 3;
           buzz(30);
           spawnParticles(obs.x + obs.w / 2, obs.y + 10, '#ffd400', 12);
-          mostrarBanner("TOGA NEUTRALIZADA! +120", "reward", "⚖️");
+          mostrarBanner("TOGA AMASSADA! +120 PTS +4.000 VOTOS", "reward", "⚖️");
           addFloatingText(obs.x + obs.w / 2, obs.y - 10, "+120", '#ffd400');
           return;
         }
@@ -2507,7 +2567,7 @@
         renan.isGrounded = false;
         renan.isFastFalling = false;
         renan.currentPlatform = null;
-        if (diapersPlaced > 0) diapersPlaced--;
+        if (votes > 0) votes -= 1000;
         obs.neutralized = true;
         cameraShake = 4;
         audio.playHit();
@@ -2515,7 +2575,7 @@
 
         if (!loseLife(2, "Levou muitos tropeços na Toga e caiu do debate!")) return;
 
-        mostrarBanner(`TOGA INDEFERIU! -1 FRALDA · RESTAM ${lives} ${lives === 1 ? 'VIDA' : 'VIDAS'}`, "danger", "⚖️");
+        mostrarBanner(`TOGA INDEFERIU! -1.000 VOTOS · RESTAM ${lives} ${lives === 1 ? 'VIDA' : 'VIDAS'}`, "danger", "⚖️");
         return;
       }
 
@@ -2617,22 +2677,18 @@
         obstacles.push(new TogaObstacle(spawnX));
       }
 
-      // Apresenta em slow-mo qualquer tipo de inimigo/púlpito inédito desta sessão
+      // Apresenta em slow-mo qualquer tipo de inimigo inédito desta sessão
       for (const obs of obstacles) maybeIntroduceObstacle(obs);
-      for (const p of pulpits) {
-        const key = 'Pulpit-' + p.candidateName;
-        triggerEncounterIntro(key, p.candidateName || 'CANDIDATO', CANDIDATE_INSULTS[p.candidateName] || 'Pule na cabeça e deixe a fralda!', '👶');
-      }
     }
 
     // Perfil do card de apresentação por tipo de inimigo
     const ENCOUNTER_PROFILES = {
-      JornalistaObstacle: { name: 'JORNALISTA', quip: 'PERGUNTA DESCONFORTAVEL!', emoji: '📢' },
-      ExMblObstacle:      { name: 'EX-MBL',      quip: 'MILITANTE OURO!',         emoji: '🗣️' },
-      McLatrocinioObstacle:{ name: 'MC LATROCÍNIO', quip: 'PC PAYPAL!',           emoji: '🎤' },
-      LadraoObstacle:     { name: 'LADRÃO DE CELULAR', quip: 'DÁ O CELULAR!',     emoji: '📱' },
+      JornalistaObstacle: { name: 'JORNALISTA', quip: 'E O FEMINICÍDIO, CANDIDATO?', emoji: '📢' },
+      ExMblObstacle:      { name: 'EX-MBL',      quip: 'EX-MBL TRAIDOR',          emoji: '🗣️' },
+      McLatrocinioObstacle:{ name: 'MC LATROCÍNIO', quip: 'TROPA TROPA TROPA',    emoji: '🎶' },
+      LadraoObstacle:     { name: 'LADRÃO DE CELULAR', quip: 'PASSA O CELULAR!',  emoji: '📱' },
       MilitanteChaser:    { name: 'MILITANTE',   quip: 'SOLTA ELE!',              emoji: '🚩' },
-      DroneObstacle:      { name: 'DRONE',       quip: 'FILMA TUDO!',             emoji: '🚁' },
+      DroneObstacle:      { name: 'DRONE',       quip: 'MISÓGINO, AGRESSOR DE MULHER!', emoji: '🚁' },
       TogaObstacle:       { name: 'TOGA DO SUPREMO', quip: 'INDEFERIDO!',         emoji: '⚖️' }
     };
 
@@ -2668,10 +2724,15 @@
       collectibles.push(new CollectibleItem(x, GROUND_Y - 100, type));
     }
 
+    // Formata votos no padrão pt-BR: 1000 -> "1.000", 12000 -> "12.000"
+    function formatVotes(n) {
+      return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
     function updateHudDisplay() {
       // Só escreve no DOM quando o valor muda — reduz operações DOM de ~360/s para ~30/s
-      const dF = diapersPlaced; const sF = Math.floor(score); const hF = handcuffs;
-      if (hudCache.diapers !== dF) { hudCache.diapers = dF; document.getElementById('hud-diapers').textContent = dF; }
+      const vF = formatVotes(votes); const sF = Math.floor(score); const hF = handcuffs;
+      if (hudCache.votes !== vF) { hudCache.votes = vF; document.getElementById('hud-votes').textContent = vF; }
       if (hudCache.score !== sF)   { hudCache.score = sF;   document.getElementById('hud-score').textContent = sF; }
       if (hudCache.handcuffs !== hF) { hudCache.handcuffs = hF; document.getElementById('hud-handcuffs').textContent = hF; }
 
@@ -2745,7 +2806,7 @@
             p.hasDiaper = true;
             p.diaperScale = 1.4;
             p.stumbled = false;
-            diapersPlaced++;
+            votes += 1000;
             score += 100;
             cameraShake = 3;
             audio.playDiaperPlaced();
@@ -2758,7 +2819,7 @@
             freezeTimer = 0.22;
             spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
             spawnParticles(p.x + p.w / 2, p.y + 4, '#ffd400', 10);
-            addFloatingText(p.x + p.w / 2, p.y - 30, "+100 FRALDA!", '#ffd400');
+            addFloatingText(p.x + p.w / 2, p.y - 30, "+1.000 VOTOS!", '#ffd400');
 
             // Fralda colocada recupera 1 vida (até o máximo de 3)
             if (lives < MAX_LIVES) {
@@ -2832,10 +2893,20 @@
       if (!activeBanner) return;
 
       ctx.save();
-      const bW = Math.round(V_WIDTH * 0.82);
-      const bH = Math.round(V_HEIGHT * 0.12);
-      const bX = Math.round((V_WIDTH - bW) / 2);
-      const bY = 56; // Logo abaixo da barra de HUD
+      const useGlobal = activeBanner.mode === 'global';
+      // Banner de AÇÃO: flutua logo acima dos inimigos, centrado no Renan (leitura junto à ação)
+      // Banner GLOBAL: centrado no canvas (progressão/avisos não críticos)
+      const bW = Math.round(V_WIDTH * (useGlobal ? 0.82 : 0.74));
+      const bH = Math.round(V_HEIGHT * (useGlobal ? 0.12 : 0.0625));
+      let bX, bY;
+      if (useGlobal) {
+        bX = Math.round((V_WIDTH - bW) / 2);
+        bY = Math.round((V_HEIGHT - bH) / 2);
+      } else {
+        const anchX = (renan && renan.x !== undefined) ? renan.x + renan.w / 2 : V_WIDTH / 2;
+        bX = Math.round(Math.min(Math.max(anchX, bW / 2 + 4), V_WIDTH - bW / 2 - 4) - bW / 2);
+        bY = 322;
+      }
 
       // Animação de fade-in e fade-out
       let alpha = 1;
@@ -2868,7 +2939,7 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const fullText = `${activeBanner.icone} ${activeBanner.texto}`;
-      while (ctx.measureText(fullText).width > bW - 32 && fontSize > 12) {
+      while (ctx.measureText(fullText).width > bW - 32 && fontSize > 10) {
         fontSize -= 1;
         ctx.font = `900 ${fontSize}px "Arial Black", sans-serif`;
       }
@@ -2934,10 +3005,14 @@
         ctx.save();
         ctx.globalAlpha = Math.max(0, ft.life);
         ctx.fillStyle = ft.color;
-        ctx.font = '900 13px sans-serif';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.font = '900 15px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.textAlign = 'center';
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 4;
+        ctx.lineJoin = 'round';
+        ctx.shadowColor = 'rgba(0,0,0,0.85)';
+        ctx.shadowBlur = 6;
+        ctx.strokeText(ft.text, ft.x, ft.y);
         ctx.fillText(ft.text, ft.x, ft.y);
         ctx.restore();
       });
@@ -3067,7 +3142,7 @@
       // Preenche dados da tela final
       document.getElementById('go-time-label').textContent = `Sobreviveu por ${gameTime.toFixed(1)}s`;
       document.getElementById('go-score').textContent = finalScore;
-      document.getElementById('go-diapers').textContent = diapersPlaced;
+      document.getElementById('go-votes').textContent = formatVotes(votes);
       document.getElementById('go-obstacles').textContent = obstaclesCleared;
       document.getElementById('go-record').textContent = highscore;
 
@@ -3187,7 +3262,7 @@
         cCtx.font = '900 32px sans-serif';
         cCtx.fillText(lastFinalScore.toString(), 140, 260);
         cCtx.fillText(`${lastGameTime.toFixed(1)}s`, 300, 260);
-        cCtx.fillText(diapersPlaced.toString(), 460, 260);
+        cCtx.fillText(formatVotes(votes), 460, 260);
 
         // Frase Desafio
         cCtx.fillStyle = '#ffffff';
