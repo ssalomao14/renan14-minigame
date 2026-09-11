@@ -36,4 +36,4 @@ console.log('Proximos passos (release):');
 console.log('  git add -A');
 console.log(`  git commit -m "release v${next}"`);
 console.log(`  git tag v${next}`);
-console.log('  git push origin main --follow-tags');
+console.log(`  git push origin main v${next}`);  // tag leve nao sobe com --follow-tags
