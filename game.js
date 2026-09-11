@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.0';
+    const GAME_VERSION = '0.1.1';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -1690,16 +1690,20 @@
       update(dx, dt) {
         this.time += dt * 3.8;
         this.propellerAngle += dt * 25;
-        // Sempre vem da direita voando (linha reta, sem flutuação senoidal)
+        // Vem voando da direita (linha reta): aproxima-se a (scroll + speedX) px/s
         this.x -= (dx + this.speedX * dt);
-        // Rasante: ao se aproximar do Renan, desce rápido até bem baixo, forçando o pulo
-        if (!this.attackTriggered && this.x <= V_WIDTH * RENAN_X_RATIO + 40) {
-          this.attackTriggered = true;
+        // Rasante em diagonal suave: inicia quando faltar ~1.15s para alcançar o Renan
+        // (baseado em tempo, não em X, para funcionar em qualquer velocidade da pista)
+        if (!this.attackTriggered) {
+          const approach = currentSpeedPx + this.speedX;
+          const timeToRenan = (this.x - V_WIDTH * RENAN_X_RATIO) / Math.max(1, approach);
+          if (timeToRenan <= 1.15) this.attackTriggered = true;
         }
         if (this.attackTriggered) {
+          // Desce devagar em diagonal reta até bem baixo, forçando o pulo com folga
           const targetY = GROUND_Y - 54;
-          if (this.y < targetY) this.y = Math.min(targetY, this.y + 330 * dt);
-          else this.y = Math.max(targetY, this.y - 60 * dt);
+          if (this.y < targetY) this.y = Math.min(targetY, this.y + 92 * dt);
+          else this.y = Math.max(targetY, this.y - 80 * dt);
         } else {
           // Voo em linha reta estável na altitude base
           this.y += (this.baseY - this.y) * Math.min(1, dt * 4);
@@ -2213,8 +2217,9 @@
           continue;
         }
 
-        // Remove fora da tela
-        if (obs.x < -120) {
+        // Remove fora da tela — perseguidora sai pela direita, demais pela esquerda
+        const offScreenRight = (obs instanceof MilitanteChaser) && obs.x > V_WIDTH + 90;
+        if (obs.x < -120 || offScreenRight) {
           if (obs instanceof LadraoObstacle && thiefSquadActive && !obs.neutralized) {
             // Ladrão fugiu pela esquerda
             addFloatingText(60, GROUND_Y - 40, "FUGIU!", "#ff7676");
@@ -2736,7 +2741,7 @@
           renan.isFastFalling = false;
           renan.currentPlatform = p;
 
-          if (!p.hasDiaper) {
+          if (!p.hasDiaper && !p.stumbled) {
             p.hasDiaper = true;
             p.diaperScale = 1.4;
             p.stumbled = false;
