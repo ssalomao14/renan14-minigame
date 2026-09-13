@@ -12,7 +12,10 @@
   <meta property="og:url" content="https://ssalomao14.github.io/renan14-minigame/">
   <meta property="og:title" content="Renan em Missão: Corrida do Livro Amarelo">
   <meta property="og:description" content="Pule, deixe a fralda no púlpito e conquiste votos no debate! Minigame da campanha eleitoral 2026.">
-  <meta property="og:image" content="https://ssalomao14.github.io/renan14-minigame/assets/capa-renan.png">
+  <meta property="og:image" content="https://ssalomao14.github.io/renan14-minigame/assets/share-cover.png">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="1024">
+  <meta property="og:image:alt" content="Renan em Missão: Corrida do Livro Amarelo — R14">
   <meta name="twitter:card" content="summary_large_image">
 
   <!-- Icones institucionais (Broche R14) -->
@@ -123,6 +126,10 @@
           JOGAR
         </button>
         <div class="start-tip" id="start-tip-text">Toque ou Espaço para pular</div>
+        <label class="intro-skip-opt">
+          <input type="checkbox" id="chk-skip-intros">
+          <span>Não mostrar a apresentação dos inimigos</span>
+        </label>
         <div class="error-notice" id="error-notice"></div>
         <div class="start-footer-links">
           <a href="#" class="start-footer-link" onclick="event.preventDefault(); alert('Missão Oficial: jogo satírico de plataforma com patente e recordes.');">Sobre</a>
@@ -204,7 +211,7 @@
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
-          DOSSIÊ DOS RIVAIS
+          DOSSIÊ DE CAMPANHA
         </button>
 
         <a href="#" class="official-link" onclick="event.preventDefault(); alert('Apoie pelos canais oficiais: Missão do Livro Amarelo.');">
@@ -232,6 +239,14 @@
             <span class="share-glyph" style="background:linear-gradient(45deg,#f58529,#dd2a7b,#8134af);">◉</span>
             <span class="share-label">Instagram</span>
           </button>
+          <button class="share-net" data-net="tiktok" aria-label="Compartilhar no TikTok">
+            <span class="share-glyph" style="background:#000;">♪</span>
+            <span class="share-label">TikTok</span>
+          </button>
+          <button class="share-net" data-net="kwai" aria-label="Compartilhar no Kwai">
+            <span class="share-glyph" style="background:#FF7A00;">K</span>
+            <span class="share-label">Kwai</span>
+          </button>
         </div>
       </div>
 
@@ -245,7 +260,7 @@
     <div class="modal-backdrop hidden" id="glossary-modal">
       <div class="modal">
         <div class="modal-head">
-          <h3 class="modal-title">Dossiê dos Rivais</h3>
+          <h3 class="modal-title">Dossiê de Campanha</h3>
           <button class="modal-close" id="glossary-close" aria-label="Fechar">✕</button>
         </div>
         <div class="glossary-hint">↓ role para baixo para ver todos ↓</div>

@@ -322,6 +322,28 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       margin-top: 10px;
     }
 
+    .intro-skip-opt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 212, 0, 0.35);
+      border-radius: 10px;
+      background: rgba(11, 21, 40, 0.85);
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.74rem;
+      color: #c6d3ea;
+      max-width: 300px;
+    }
+    .intro-skip-opt input {
+      accent-color: #ffd400;
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+
     .error-notice {
       display: none;
       color: #ffd400;
@@ -829,6 +851,14 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       font-size: 0.82rem;
       font-weight: 900;
       margin-bottom: 2px;
+    }
+
+    .glossary-quote {
+      color: #ffffff;
+      font-size: 0.74rem;
+      font-weight: 900;
+      font-style: italic;
+      margin-bottom: 4px;
     }
 
     .glossary-desc {

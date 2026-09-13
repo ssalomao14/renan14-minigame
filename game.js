@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.3';
+    const GAME_VERSION = '0.1.4';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -224,6 +224,8 @@
     // Escala de tempo do mundo (slow-mo de introdução de personagem)
     let worldTimeScale = 1;
     let activeCard = null;            // Card "primeiro confronto"
+    const pendingIntroQueue = [];     // Cards de intro esperando a vez (nunca sobrepõem)
+    let lastIntroAt = 0;              // Último instante de nova intro (p/ espaçar spawns)
     const encounteredTypes = new Set(); // Tipos já apresentados nesta sessão
     // Fila de spawns dependentes de tempo (substitui setTimeout)
     let pendingSpawns = [];
@@ -238,19 +240,22 @@
         tipo,
         icone,
         mode,
-        duration: 2.8,
-        timer: 2.8
+        duration: 2.4,
+        timer: 2.4
       };
     }
 
     // --- INTRODUÇÃO PAUSADA POR PERSONAGEM (CARD "PRIMEIRO CONFRONTO") ---
-    // Uma vez por sessão, cada tipo de inimigo é apresentado em slow-mo com balão + nome,
-    // dando tempo de ler a piada e aprender a mecânica. Toque pula.
+    // Uma vez por sessão, cada tipo de inimigo é apresentado com PAUSA TOTAL do mundo
+    // (card + nome + piada; nada se move durante a apresentação; toque pula).
+    // A opção "não mostrar novamente" fica persistida no navegador (por dispositivo).
     function triggerEncounterIntro(typeKey, name, quip, emoji) {
       if (encounteredTypes.has(typeKey)) return;
       if (gameState !== STATE.PLAYING) return;
+      if (getSkipIntrosFlag()) return;
       encounteredTypes.add(typeKey);
-      activeCard = {
+      lastIntroAt = performance.now();
+      const card = {
         typeKey,
         name,
         quip,
@@ -258,13 +263,26 @@
         duration: 2.6,
         timer: 2.6
       };
-      worldTimeScale = 0.24;
+      if (activeCard) {
+        // Intro já em exibição: enfileira a próxima (nunca substitui a atual)
+        pendingIntroQueue.push(card);
+        return;
+      }
+      activeCard = card;
       audio.playReveal();
       buzz(20);
     }
 
     function endIntroCard() {
       if (!activeCard) return;
+      if (pendingIntroQueue.length) {
+        // Mostra o próximo card da fila em sequência (pausa continua até a fila esvaziar)
+        activeCard = pendingIntroQueue.shift();
+        activeCard.timer = activeCard.duration;
+        audio.playReveal();
+        buzz(20);
+        return;
+      }
       activeCard = null;
       worldTimeScale = 1;
     }
@@ -273,12 +291,52 @@
       if (activeCard) endIntroCard();
     }
 
+    // --- Opção "não mostrar apresentação novamente" (persistida por dispositivo) ---
+    function getSkipIntrosFlag() {
+      try { return localStorage.getItem('renan_mission_skip_intros') === '1'; } catch (err) { return false; }
+    }
+    function setSkipIntrosFlag(on) {
+      try {
+        if (on) localStorage.setItem('renan_mission_skip_intros', '1');
+        else localStorage.removeItem('renan_mission_skip_intros');
+      } catch (err) {}
+    }
+    function toggleSkipIntros() {
+      const on = !getSkipIntrosFlag();
+      setSkipIntrosFlag(on);
+      if (activeCard) activeCard.skipChecked = on;
+      const chk = document.getElementById('chk-skip-intros');
+      if (chk) chk.checked = on;
+      return on;
+    }
+
+    // Converte um evento pointer/touch p/ coordenadas VIRTUAIS do jogo (mesma tela do card)
+    function getPointerPoint(e) {
+      if (!e) return null;
+      const src = (e.touches && e.touches[0]) ? e.touches[0] : e;
+      if (typeof src.clientX !== 'number') return null;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return null;
+      const xBack = (src.clientX - rect.left) * (canvas.width / rect.width);
+      const yBack = (src.clientY - rect.top) * (canvas.height / rect.height);
+      return {
+        x: (xBack - VIEW.ox) / VIEW.scale,
+        y: (yBack - VIEW.oy) / VIEW.scale
+      };
+    }
+    function pointInRect(pt, r) {
+      return pt && r && pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h;
+    }
+
     // Agenda uma função para rodar dentro do game loop (evita setTimeout fora de contexto)
     function scheduleSpawn(seconds, fn) {
       pendingSpawns.push({ t: seconds, fn });
     }
 
     // Card de apresentação desenhado no meio do canvas (fade in/out, ênfase editorial)
+    // Layout: tag -> emoji -> nome -> piada -> checkbox -> countdown.
+    // A tag vermelha fica AFORA do alcance do emoji (nada de sobreposição).
+    const INTRO_BOX_RECT = { x: V_WIDTH / 2 - 160, y: 240, w: 230, h: 20 };
     function drawIntroCard() {
       if (!activeCard) return;
       const card = activeCard;
@@ -286,8 +344,8 @@
       if (alpha <= 0) return;
 
       const cx = V_WIDTH / 2;
-      const cw = 322;
-      const ch = 152;
+      const cw = 330;
+      const ch = 196;
       const cy = 222;
       const tagText = 'INIMIGO NOVO';
       const pulse = 1 + Math.sin(performance.now() * 0.006) * 0.015;
@@ -324,26 +382,26 @@
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.roundRect(cx - tagW / 2, cy - ch / 2 + 10, tagW, 18, 9);
+      ctx.roundRect(cx - tagW / 2, cy - ch / 2 + 8, tagW, 18, 9);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = '#081120';
-      ctx.fillText(tagText, cx, cy - ch / 2 + 19);
+      ctx.fillText(tagText, cx, cy - ch / 2 + 17);
 
-      // Emoji grande
+      // Emoji grande (abaixo da tag, sem atropelá-la)
       ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
       ctx.shadowBlur = 12;
-      ctx.font = '900 48px sans-serif';
-      ctx.fillText(card.emoji, cx, cy - 34);
+      ctx.font = '900 40px sans-serif';
+      ctx.fillText(card.emoji, cx, cy - 46);
       ctx.shadowBlur = 0;
 
       // Nome do personagem
       ctx.font = '900 22px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 4.5;
-      ctx.strokeText(card.name, cx, cy + 11);
+      ctx.strokeText(card.name, cx, cy - 18);
       ctx.fillStyle = '#ffd400';
-      ctx.fillText(card.name, cx, cy + 11);
+      ctx.fillText(card.name, cx, cy - 18);
 
       // Piada/frase em 1 linha
       let quip = card.quip;
@@ -354,7 +412,31 @@
         ctx.font = `900 ${qSize}px "Arial Black", sans-serif`;
       }
       ctx.fillStyle = '#c6d3ea';
-      ctx.fillText(quip, cx, cy + 38);
+      ctx.fillText(quip, cx, cy + 6);
+
+      // Checkbox "não mostrar apresentação novamente" (fica na própria intro)
+      const skipChecked = card.skipChecked != null ? card.skipChecked : getSkipIntrosFlag();
+      const boxX = cx - 152;
+      const boxY = cy + 20;
+      const boxS = 14;
+      ctx.fillStyle = '#081120';
+      ctx.strokeStyle = '#ffd400';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, boxS, boxS, 3);
+      ctx.fill();
+      ctx.stroke();
+      if (skipChecked) {
+        ctx.fillStyle = '#ffd400';
+        ctx.font = '900 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✓', boxX + boxS / 2, boxY + boxS / 2 + 0.5);
+      }
+      ctx.textAlign = 'left';
+      ctx.font = '900 10px "Arial Black", sans-serif';
+      ctx.fillStyle = '#c6d3ea';
+      ctx.fillText('Não mostrar apresentação novamente', boxX + boxS + 8, boxY + boxS / 2 + 0.5);
 
       // Barra de countdown (tempo restante da introdução)
       const ratio = Math.max(0, Math.min(1, card.timer / card.duration));
@@ -382,6 +464,8 @@
     let freezeTimer = 0;
     // Ampliação dramática do "MACHISTA!" destacado ao colidir com o drone
     let machistaFlashTimer = 0;
+    // Se >0, o flash é de ABATE do drone (MISÓGINO + votos); se 0, é o tropeço (MACHISTA -2.000)
+    let machistaKillFlash = 0;
 
     let votes = 0;
     let obstaclesCleared = 0;
@@ -1070,15 +1154,20 @@
     let jumpHeldTime = 0;
     const MAX_HOLD_TIME = 16; // Quadros permitidos para segurar e ganhar altura extra
 
-    function handleInputStart() {
+    function handleInputStart(e) {
       audio.init();
 
       // Pausado: ignora toque de pulo (retomar só pelo botão ou tecla P/Esc)
       if (isPaused) return;
 
-      // Toque durante o card de introdução: pula a apresentação E aplica o pulo
-      // (jogador não pode ficar sem controle durante a pausa de slow-mo)
+      // Toque durante o card de introdução: marcar "não mostrar novamente" ou pular a apresentação.
+      // (jogador não pode ficar sem controle durante a pausa)
       if (activeCard) {
+        const pt = getPointerPoint(e);
+        if (pointInRect(pt, INTRO_BOX_RECT)) {
+          toggleSkipIntros();
+          return;
+        }
         skipIntroCard();
       }
 
@@ -1143,7 +1232,7 @@
     // Touch direto na tela do canvas
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      handleInputStart();
+      handleInputStart(e);
     }, { passive: false });
 
     canvas.addEventListener('touchend', (e) => {
@@ -1153,7 +1242,7 @@
 
     canvas.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      handleInputStart();
+      handleInputStart(e);
     });
 
     window.addEventListener('mouseup', () => {
@@ -1718,16 +1807,20 @@
         this.speed = 135;
         this.neutralized = false;
         this.bubblePeriod = 2.0;
+        this.releaseHold = 0; // fica parada levemente após soltar um preso (fica legível)
       }
 
       update(dx, dt) {
         if (this.neutralized) {
           // Neutralizada: voa para fora da tela (esquerda)
           this.x -= dx + 260 * dt;
+        } else if (this.releaseHold > 0) {
+          // Acabou de soltar um preso: segura o framming por um instante (sem colidir)
+          this.releaseHold -= dt;
         } else {
           // Perseguidora: corre da esquerda para a direita SEMPRE mais rápido que o scroll
           // (dx = corrente da pista). Net = +persecSpeed px/s no cursor da tela.
-          const persecSpeed = 86;
+          const persecSpeed = 98;
           this.x += (currentSpeedPx + persecSpeed) * dt - dx;
         }
       }
@@ -1770,7 +1863,7 @@
 
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 12) * 2);
-          entityBubble(this, 'MILITANTE', 'SOLTA ELE!');
+          entityBubble(this, 'MILITANTE', this.releaseHold > 0 ? 'SOLTOU! FUGIU!' : 'SOLTA ELE!');
         }
         endEntityFrame();
       }
@@ -2136,6 +2229,8 @@
 
       // Cada corrida reintroduz os personagens: limpa estado de intro (cards do "primeiro confronto")
       encounteredTypes.clear();
+      pendingIntroQueue.length = 0;
+      lastIntroAt = 0;
       activeCard = null;
       worldTimeScale = 1;
 
@@ -2185,7 +2280,26 @@
       return mult;
     }
 
+    // Aplica o multiplicador (X2/X3 da Carta) em QUALQUER ganho de votos —
+    // perdas (-votos de Toga/Ladrão/Drone) ficam SEM multiplicador.
+    function grantVotes(base) {
+      return Math.round(base * getActiveMultiplier());
+    }
+
     function updateWorld(dt) {
+      // Card de apresentação de personagem: PAUSA TOTAL.
+      // Enquanto o card está visível o mundo (entidades, renan, cronômetros e spawns)
+      // permanece congelado; só o timer do card avança. Toque pula (ver handleInputStart).
+      if (activeCard) {
+        activeCard.timer -= dt;
+        if (activeCard.timer <= 0) {
+          endIntroCard();
+        } else {
+          return; // congela todo o restante do updateWorld durante a pausa
+        }
+      }
+      worldTimeScale += (1 - worldTimeScale) * Math.min(1, dt * 8);
+
       // Temporizadores de perks e banner
       if (cardMultiplierTimer > 0) cardMultiplierTimer -= dt;
       if (imperialModeTimer > 0) imperialModeTimer -= dt;
@@ -2197,17 +2311,6 @@
         if (activeBanner.timer <= 0) {
           activeBanner = null;
         }
-      }
-
-      // Card de apresentação de personagem (slow-mo controlado)
-      if (activeCard) {
-        activeCard.timer -= dt;
-        if (activeCard.timer <= 0) {
-          endIntroCard();
-        }
-        worldTimeScale = 0.24;
-      } else {
-        worldTimeScale += (1 - worldTimeScale) * Math.min(1, dt * 8);
       }
 
       // Fila de spawns dependentes de tempo (substitui setTimeout)
@@ -2315,7 +2418,7 @@
         advanceEntityAnim(obs, dt);
 
         // Ultrapassou com sucesso
-        if (!obs.cleared && obs.x + obs.w < renan.x && !obs.neutralized) {
+        if (!obs.cleared && obs.x + obs.w < renan.x && !obs.neutralized && !obs.chainPending) {
           obs.cleared = true;
           obstaclesCleared++;
           const pts = 200 * currentMult;
@@ -2328,7 +2431,7 @@
         // Inset padrão 2/4, mas cada obstáculo pode definir hitInset próprio (ex.: drone menor p/ desvio justo)
         const hx = (obs.hitInset && obs.hitInset.x != null) ? obs.hitInset.x : 2;
         const hy = (obs.hitInset && obs.hitInset.y != null) ? obs.hitInset.y : 4;
-        if (spawnGraceTimer <= 0 && !obs.neutralized && checkAABB(renan.x + 2, renan.y + 4, renan.w - 4, renan.h - 4, obs.x + hx, obs.y + hy, obs.w - hx * 2, obs.h - hy * 2)) {
+        if (spawnGraceTimer <= 0 && !obs.neutralized && !obs.releaseHold && !obs.chainPending && checkAABB(renan.x + 2, renan.y + 4, renan.w - 4, renan.h - 4, obs.x + hx, obs.y + hy, obs.w - hx * 2, obs.h - hy * 2)) {
           handleObstacleCollision(obs, i);
           continue;
         }
@@ -2444,12 +2547,47 @@
       return 200;
     }
 
+    // Captura um ladrão (stomp): +votos, +1 algema, +1 prisioneiro.
+    // Com a quadrilha ativa, ao chegar aos 3 capturados fecha a quadrilha + gera Militante.
+    function captureThief(obs) {
+      if (obs.neutralized) return;
+      obs.neutralized = true;
+      const gainD = grantVotes(1000);
+      votes += gainD;
+      handcuffs++;
+      prisonersHeld++;
+      thiefSquadCaught++;
+      mostrarBanner(`+${formatVotes(gainD)} VOTOS +1 ALGEMA!`, "reward", "📱");
+      addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(gainD)}`, '#ffd400');
+      spawnParticles(obs.x + obs.w / 2, obs.y + 10, '#607d8b', 10);
+      cameraShake = 3;
+      buzz(25);
+      audio.playHit();
+
+      if (thiefSquadCaught >= 3) {
+        thiefSquadActive = false;
+        const gainQ = grantVotes(500);
+        votes += gainQ;
+        mostrarBanner(`QUADRILHA DESMANTELADA! +${formatVotes(gainQ)} VOTOS`, "reward", "🏆", "global");
+
+        scheduleSpawn(1.0, () => {
+          if (obstacles.length < 4 && !obstacles.some((o) => o instanceof MilitanteChaser)) {
+            const m = new MilitanteChaser(-40);
+            obstacles.push(m);
+            mostrarBanner("MILITANTE GERADA! SOLTA ELE!", "danger", "🚩", "global");
+            spawnChainWarning('left', '🚩', 'Militante');
+          }
+        });
+      }
+    }
+
     function handleObstacleCollision(obs, index) {
       // Espadim de Tiradentes: elimina o inimigo pagando o valor dele + bônus
       if (hasSwordStrike) {
         hasSwordStrike = false;
         obs.neutralized = true;
-        const swordTotal = getObstacleValue(obs) + 200;
+        if (obs instanceof LadraoObstacle && thiefSquadActive && thiefSquadCaught < 3) thiefSquadCaught++;
+        const swordTotal = grantVotes(getObstacleValue(obs) + 200);
         votes += swordTotal;
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 16);
         addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(swordTotal)}`, '#ffd400');
@@ -2462,8 +2600,9 @@
         const neutralizeVotes = getObstacleValue(obs);
 
         const oncaBonus = oncaRidingTimer > 0 ? 500 : 0;
-        const total = neutralizeVotes + oncaBonus;
+        const total = grantVotes(neutralizeVotes + oncaBonus);
         obs.neutralized = true;
+        if (obs instanceof LadraoObstacle && thiefSquadActive && thiefSquadCaught < 3) thiefSquadCaught++;
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 14);
         votes += total;
         addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(total)}`, '#e67e22');
@@ -2492,8 +2631,10 @@
         if (isStomp) {
           renan.vy = -8.8;
           obs.neutralize();
-          votes += 5000;
-          mostrarBanner("+5.000 VOTOS! LARGA O MICROFONE!", "reward", "🎤");
+          const gainA = grantVotes(5000);
+          votes += gainA;
+          mostrarBanner(`+${formatVotes(gainA)} VOTOS! LARGA O MICROFONE!`, "reward", "🎤");
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(gainA)}`, '#ffd400');
 
           // Drone extra surge após atraso mínimo seguro de 0.9s (fila do game loop)
           // Nunca gera drone se já houver um no ar (evita drone empilhado atrás do outro)
@@ -2522,8 +2663,10 @@
         if (isStomp) {
           renan.vy = -8.6;
           obs.neutralized = true;
-          votes += 2000;
-          mostrarBanner("EX-MBL NEUTRALIZADO! +2.000 VOTOS", "reward", "👶");
+          const gainB = grantVotes(2000);
+          votes += gainB;
+          mostrarBanner(`EX-MBL NEUTRALIZADO! +${formatVotes(gainB)} VOTOS`, "reward", "👶");
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(gainB)}`, '#ffd400');
           return;
         } else {
           // Lateral: perde 1 vida e 1 fralda
@@ -2547,8 +2690,10 @@
           handcuffs++;
           prisonersHeld++;
           mcInJail = true;
-          votes += 2000;
-          mostrarBanner("PRENDEU! +2.000 VOTOS +1 ALGEMA", "reward", "⛓️");
+          const gainC = grantVotes(2000);
+          votes += gainC;
+          mostrarBanner(`PRENDEU! +${formatVotes(gainC)} VOTOS +1 ALGEMA`, "reward", "⛓️");
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(gainC)}`, '#ffd400');
 
           // Militante surge após atraso seguro de 1.1s (fila do game loop)
           // Nunca gera militante se já houver uma perseguindo (evita pilha de militantes)
@@ -2576,25 +2721,20 @@
       } else if (obs instanceof LadraoObstacle) {
         if (isStomp) {
           renan.vy = -8.6;
-          obs.neutralized = true;
-          votes += 1000;
-          handcuffs++;
-          prisonersHeld++;
-          thiefSquadCaught++;
-          mostrarBanner("+1.000 VOTOS +1 ALGEMA!", "reward", "📱");
-
-          if (thiefSquadCaught >= 3) {
-            thiefSquadActive = false;
-            votes += 500;
-            mostrarBanner("QUADRILHA DESMANTELADA! +500 VOTOS", "reward", "🏆", "global");
-
-            scheduleSpawn(1.0, () => {
-              if (obstacles.length < 4 && !obstacles.some((o) => o instanceof MilitanteChaser)) {
-                const m = new MilitanteChaser(-40);
-                obstacles.push(m);
-                mostrarBanner("MILITANTE GERADA! SOLTA ELE!", "danger", "🚩", "global");
-                spawnChainWarning('left', '🚩', 'Militante');
-              }
+          // CADEIA DA QUADRILHA: ao prender o 1º ladrão, Renan "pula em sequência"
+          // (auto-stomps em combo) e a quadrilha cai inteira — resolve a falta de espaço.
+          const startSquadChain = thiefSquadActive && thiefSquadCaught === 0;
+          captureThief(obs);
+          if (startSquadChain) {
+            const remainingChain = obstacles.filter((o) => o instanceof LadraoObstacle && !o.neutralized);
+            remainingChain.forEach((other, k) => {
+              other.chainPending = true; // não colidir até cair no combo
+              scheduleSpawn(0.18 + k * 0.15, () => {
+                if (thiefSquadActive && !other.neutralized) {
+                  renan.vy = Math.max(renan.vy, -10);
+                  captureThief(other);
+                }
+              });
             });
           }
           return;
@@ -2603,8 +2743,10 @@
         if (isStomp) {
           renan.vy = -8.6;
           obs.neutralized = true;
-          votes += 2000;
-          mostrarBanner("+2.000 VOTOS! MILITANTE NEUTRALIZADA", "reward", "⭐");
+          const gainE = grantVotes(2000);
+          votes += gainE;
+          mostrarBanner(`+${formatVotes(gainE)} VOTOS! MILITANTE NEUTRALIZADA`, "reward", "⭐");
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(gainE)}`, '#ffd400');
 
           scheduleSpawn(0.9, () => {
             if (obstacles.length < 4 && !obstacles.some((o) => o instanceof DroneObstacle)) {
@@ -2624,23 +2766,43 @@
           if (prisonersHeld > 0) {
             prisonersHeld--;
             if (handcuffs > 0) handcuffs--;
+            freezeTimer = Math.max(freezeTimer, 0.5);
             mostrarBanner("PRESO LIBERTADO PELA MILITANTE! -1 VIDA", "danger", "🚩");
             if (mcInJail) {
-              // Soltou o MC capturado: ele foge em disparada com deboche
+              // Soltou o MC capturado: ele foge (devagar p/ ficar legível) com deboche
               mcInJail = false;
               spawnMcEscape();
+              mostrarBanner("MILITANTE SOLTOU O MC! ELE FUGIU COM DEBOCHÉ!", "danger", "🎤");
             }
+            // Militante fica em cena (~0.85s) mostrando a soltura, depois some
+            obs.releaseHold = 0.85;
           } else {
             mostrarBanner("PETISTA! TRAIDOR! -1 VIDA", "danger", "🚩");
+            obs.neutralized = true;
           }
-          obs.neutralized = true;
           cameraShake = 4;
           audio.playHit();
           buzz(35);
           return;
         }
       } else if (obs instanceof DroneObstacle) {
+        // ABATE no drone: Renan pisa em cima e o derruba — MISÓGINO abatido (+1.500 votos)
+        if (isStomp) {
+          renan.vy = -8.6;
+          obs.neutralized = true;
+          cameraShake = 4;
+          audio.playHit();
+          buzz(40);
+          machistaFlashTimer = 1.0;
+          machistaKillFlash = grantVotes(1500); // mantém o impacto, mas o nome muda p/ MISÓGINO
+          votes += machistaKillFlash;
+          spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 14);
+          mostrarBanner(`MISÓGINO ABATIDO! +${formatVotes(machistaKillFlash)} VOTOS`, "reward", "🚁");
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(machistaKillFlash)}`, '#ffd400');
+          return;
+        }
         // "Tropeço" no drone: pausa dramática + MACHISTA! destacado no centro
+        machistaKillFlash = 0;
         if (!loseLife(1, "O drone acabou com o debate do Renan!")) return;
         renan.vy = -7;
         renan.isGrounded = false;
@@ -2668,12 +2830,13 @@
           // STOMP neutraliza: amassa a Toga com a fralda
           renan.vy = -8.6;
           obs.neutralized = true;
-          votes += 4000;
+          const gainF = grantVotes(4000);
+          votes += gainF;
           cameraShake = 3;
           buzz(30);
           spawnParticles(obs.x + obs.w / 2, obs.y + 10, '#ffd400', 12);
-          mostrarBanner("TOGA AMASSADA! +4.000 VOTOS", "reward", "⚖️");
-          addFloatingText(obs.x + obs.w / 2, obs.y - 10, "+4.000", '#ffd400');
+          mostrarBanner(`TOGA AMASSADA! +${formatVotes(gainF)} VOTOS`, "reward", "⚖️");
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(gainF)}`, '#ffd400');
           return;
         }
 
@@ -2766,37 +2929,46 @@
       escapingMCs.push({
         x: renan.x + 30,
         y: GROUND_Y - 60,
-        speed: 175,
-        life: 1.7,
+        speed: 85,
+        life: 4.2,
         anim: 0
       });
+      // Deixa clara a fuga: explosão de microfones + abalo na câmera
+      spawnParticles(renan.x + 45, GROUND_Y - 55, '#d4e157', 16);
+      spawnParticles(renan.x + 45, GROUND_Y - 75, '#ffd400', 10);
     }
 
     function drawEscapingMc(e) {
-      const w = 38;
-      const h = 54;
+      const w = 50;
+      const h = 68;
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, e.life * 1.2));
-      const bob = Math.sin(e.anim * 14) * 2.5;
+      const bob = Math.sin(e.anim * 14) * 3;
       const x = e.x;
       const y = e.y + bob;
-      // Corpo verde-limão (estilo do MC) correndo pra fora da tela
-      ctx.fillStyle = '#d4e157';
-      ctx.strokeStyle = '#0b1528';
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.roundRect(x, y + 18, w, h - 26, 7);
-      ctx.fill();
-      ctx.stroke();
-      // Boné vermelho
-      ctx.fillStyle = '#c0392b';
-      ctx.fillRect(x + 6, y + 2, 26, 7);
-      ctx.fillRect(x + 1, y + 7, 17, 4);
-      // Cabeça
-      ctx.fillStyle = '#fbd4b4';
-      ctx.beginPath();
-      ctx.arc(x + w / 2, y + 12, 8, 0, Math.PI * 2);
-      ctx.fill();
+      // Usa o sprite oficial do MC quando disponível (não uma "caixa amarela com microfone")
+      const spr = loadedSprites.mc;
+      if (spr && spr.width && spr.height) {
+        ctx.drawImage(spr, x, y, w, h);
+      } else {
+        // Fallback procedural: corpo verde-limão (estilo do MC) correndo pra fora da tela
+        ctx.fillStyle = '#d4e157';
+        ctx.strokeStyle = '#0b1528';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.roundRect(x, y + 18, w, h - 26, 7);
+        ctx.fill();
+        ctx.stroke();
+        // Boné vermelho
+        ctx.fillStyle = '#c0392b';
+        ctx.fillRect(x + 6, y + 2, 26, 7);
+        ctx.fillRect(x + 1, y + 7, 17, 4);
+        // Cabeça
+        ctx.fillStyle = '#fbd4b4';
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + 12, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
       // Corrente dourada
       ctx.fillStyle = '#ffd400';
       for (let cx = x + 9; cx <= x + w - 10; cx += 5) {
@@ -2828,18 +3000,23 @@
 
       // Distribuição por tempo de jogo:
       // FASE 1 (0-15s): Simples e calma — TOGA rara e JORNALISTA aparece cedo (p/ ser conhecida)
+      // Durante ~4.5s após uma intro de tipo NOVO, evita apresentar outro tipo inédito
+      // (deixa respirar entre apresentações; troca o spawn por púlpito seguro).
       if (gameTime < 15) {
         const r = Math.random();
+        const cooling = (performance.now() - lastIntroAt) < 4500;
         if (r < 0.40) {
           pulpits.push(createNextPulpit(spawnX));
-        } else if (r < 0.60) {
+        } else if (r < 0.60 && (!cooling || encounteredTypes.has('ExMblObstacle'))) {
           obstacles.push(new ExMblObstacle(spawnX));
-        } else if (r < 0.78) {
+        } else if (r < 0.78 && (!cooling || encounteredTypes.has('LadraoObstacle'))) {
           obstacles.push(new LadraoObstacle(spawnX, 1));
-        } else if (r < 0.92) {
+        } else if (r < 0.92 && (!cooling || encounteredTypes.has('JornalistaObstacle'))) {
           obstacles.push(new JornalistaObstacle(spawnX));
-        } else {
+        } else if (!cooling || encounteredTypes.has('TogaObstacle')) {
           obstacles.push(new TogaObstacle(spawnX));
+        } else {
+          pulpits.push(createNextPulpit(spawnX));
         }
 
       // FASE 2 (15-40s): Acrescenta MC Latrocínio e DRONE do Cury
@@ -3050,7 +3227,8 @@
             p.hasDiaper = true;
             p.diaperScale = 1.4;
             p.stumbled = false;
-            votes += 1000;
+            const pGain = grantVotes(1000);
+            votes += pGain;
             cameraShake = 3;
             audio.playDiaperPlaced();
             buzz(30);
@@ -3062,7 +3240,7 @@
             freezeTimer = 0.22;
             spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
             spawnParticles(p.x + p.w / 2, p.y + 4, '#ffd400', 10);
-            addFloatingText(p.x + p.w / 2, p.y - 30, "+1.000 VOTOS!", '#ffd400');
+            addFloatingText(p.x + p.w / 2, p.y - 30, `+${formatVotes(pGain)} VOTOS!`, '#ffd400');
 
             // Fralda colocada recupera 1 vida (até o máximo de 3)
             if (lives < MAX_LIVES) {
@@ -3284,12 +3462,16 @@
         ctx.shadowBlur = 30;
         ctx.fillStyle = '#ff2d55';
         ctx.font = '900 44px sans-serif';
-        ctx.fillText('MACHISTA!', 0, -16);
+        ctx.fillText(machistaKillFlash > 0 ? 'MISÓGINO!' : 'MACHISTA!', 0, -16);
         ctx.shadowBlur = 8;
         ctx.shadowColor = 'rgba(0,0,0,0.9)';
         ctx.fillStyle = '#ffffff';
         ctx.font = '900 26px sans-serif';
-        ctx.fillText('-2.000 VOTOS · -1 VIDA', 0, 34);
+        ctx.fillText(
+          machistaKillFlash > 0 ? `+${formatVotes(machistaKillFlash)} VOTOS ABATIDO!` : '-2.000 VOTOS · -1 VIDA',
+          0,
+          34
+        );
         ctx.restore();
       }
 
@@ -3375,6 +3557,13 @@
     const soundOn = document.getElementById('sound-icon-on');
     const soundOff = document.getElementById('sound-icon-off');
     const shareToast = document.getElementById('share-toast');
+
+    // Opção persistente: pula as apresentações de inimigos (por dispositivo)
+    const chkSkipIntros = document.getElementById('chk-skip-intros');
+    if (chkSkipIntros) {
+      chkSkipIntros.checked = getSkipIntrosFlag();
+      chkSkipIntros.addEventListener('change', () => setSkipIntrosFlag(chkSkipIntros.checked));
+    }
 
     function startGame() {
       audio.init();
@@ -3524,18 +3713,59 @@
         const net = btn.dataset.net;
         const menu = document.getElementById('share-menu');
 
+        function isMobileUA() {
+          return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent)
+            && (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0);
+        }
+
+        // Nativo (Web Share API) só em celular/tablet de verdade.
+        // No desktop o navigator.share abre a janelinha de compartilhamento do Windows
+        // (ex.: Instagram) — que NÃO é o comportamento desejado. Usa fallback: copia + abre o site.
+        function doAppSharedShare(full, dstUrl, toastMsg, extra) {
+          const doFallback = () => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(full).catch(() => {}); // clipboard pode exigir permissão
+            }
+            window.open(dstUrl, '_blank');
+            showShareToast(toastMsg);
+          };
+          if (navigator.share && isMobileUA()) {
+            // No Android/iOS o app recebe texto (e link) juntos direto na rede social
+            navigator.share(Object.assign({ text: full }, extra && extra.url ? { url: extra.url } : {}))
+              .catch((err) => {
+                if (!err || err.name !== 'AbortError') doFallback();
+              });
+          } else {
+            doFallback();
+          }
+        }
+
         if (net === 'twitter') {
           window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(full)}`, '_blank');
         } else if (net === 'whatsapp') {
           window.open(`https://wa.me/?text=${encodeURIComponent(full)}`, '_blank');
         } else if (net === 'facebook') {
-          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank');
-        } else if (net === 'instagram') {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(full).catch(() => {});
+          if (navigator.share && isMobileUA()) {
+            // No celular o app do Facebook recebe texto+link juntos (dialogs do share.php ignoram o texto)
+            navigator.share({ text: full, url })
+              .catch(() => {
+                window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank');
+              });
+          } else {
+            // Desktop: sharer.php do Facebook IGNORA o parâmetro quote (post zera).
+            // Copia o texto e abre o compartilhador com a URL — basta colar no campo.
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(full).catch(() => {});
+            }
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank');
+            showShareToast('Texto copiado! Cole no campo "Escreva algo..." do Facebook.');
           }
-          window.open('https://www.instagram.com/', '_blank');
-          showShareToast('Texto e link copiados! Cole na legenda do Instagram.');
+        } else if (net === 'instagram') {
+          doAppSharedShare(full, 'https://www.instagram.com/', 'Texto e link copiados! Cole na legenda do Instagram.', { url });
+        } else if (net === 'tiktok') {
+          doAppSharedShare(full, 'https://www.tiktok.com/', 'Texto e link copiados! Cole na legenda do TikTok.', { url });
+        } else if (net === 'kwai') {
+          doAppSharedShare(full, 'https://www.kwai.com/', 'Texto e link copiados! Cole na legenda do Kwai.', { url });
         }
 
         if (menu) menu.classList.add('hidden');
@@ -3703,19 +3933,19 @@
 
     // Glossário repaginado: cards horizontais com o sprite (maior que no jogo) + balão original do personagem
     const GLOSSARY_ENTRIES = [
-      { sprite: 'run1', name: 'Renan Santos', desc: 'Protagonista, líder da Missão.', bubble: 'Vamos para o Livro Amarelo!', bname: 'RENAN' },
+      { sprite: 'run1', sword: true, name: 'Renan Santos', quote: 'O homi é bão.', bubble: 'Vamos para o Livro Amarelo!', bname: 'RENAN' },
       { sprite: 'onca', name: 'Onça Pintada', desc: 'Mascote da Missão e símbolo de preservação e soberania.', bubble: 'GRRR! ATROPELO QUEM OUSAR!', bname: 'ONÇA' },
       { sprite: 'jornalista', name: 'Jornalista', desc: 'Caricatura das sabatinas enviesadas de campanha.', bubble: 'E O FEMINICÍDIO, CANDIDATO?', bname: 'JORNALISTA' },
-      { sprite: 'exmbl', name: 'Ex-MBL (Dissidente)', desc: 'Crítica aos antigos aliados que aderiram ao governismo.', bubble: 'EX-MBL TRAIDOR', bname: 'EX-MBL' },
-      { sprite: 'mc', name: 'MC Latrocínio', desc: 'Sátira sobre o crime organizado e a apologia no funk.', bubble: 'TROPA TROPA TROPA', bname: 'MC LATROCÍNIO' },
+      { sprite: 'exmbl', name: 'Ex-MBL (Dissidente)', quote: 'Disculpa, Disculpa, Bolsonaro!', desc: 'Crítica aos traidores do movimento que se aliaram ao bolsonarismo.', bubble: 'EX-MBL TRAIDOR', bname: 'EX-MBL' },
+      { sprite: 'mc', name: 'MC Latrocínio', desc: 'Sátira sobre o crime organizado e a apologia ao crime no funk.', bubble: 'TROPA TROPA TROPA', bname: 'MC LATROCÍNIO' },
       { sprite: 'ladrao', name: 'Ladrão de Celular', desc: 'Representação dos crimes patrimoniais urbanos.', bubble: 'PASSA O CELULAR!', bname: 'LADRÃO' },
-      { sprite: 'militante', name: 'Militante de Esquerda', desc: 'Caricatura da militância universitária que defende infratores.', bubble: 'SOLTA ELE!', bname: 'MILITANTE' },
-      { sprite: 'drone', name: 'Drone do Cury', desc: 'Sátira sobre os ataques de adversários políticos com narrativas genéricas.', bubble: 'MISÓGINO, AGRESSOR DE MULHER!', bname: 'DRONE' },
-      { sprite: 'toga', name: 'Toga do Supremo', desc: 'Representação da burocracia e das decisões judiciais monocráticas.', bubble: 'INDEFERIDO!', bname: 'TOGA' },
-      { kind: 'pulpit', name: 'LULA / FLÁVIO', desc: 'Sátira à polarização política tradicional brasileira.' },
+      { sprite: 'militante', name: 'Militante de Esquerda', desc: 'Caricatura da militância universitária que defende bandido.', bubble: 'SOLTA ELE!', bname: 'MILITANTE' },
+      { sprite: 'drone', name: 'Drone do Cury', quote: 'Nem picanha nem fuzil, eu quero é RIVOTRIL', desc: 'Sátira sobre as propostas caricatas de adversários políticos com narrativas genéricas e frases prontas.', bubble: 'MISÓGINO, AGRESSOR DE MULHER!', bname: 'DRONE' },
+      { sprite: 'toga', name: 'Toga do Supremo', quote: 'Decisão ilegal não se cumpre!', desc: 'Representação do autoritarismo e das decisões judiciais monocráticas ilegais.', bubble: 'INDEFERIDO!', bname: 'TOGA' },
+      { kind: 'pulpit', name: 'LULA / FLÁVIO', desc: 'Púlpitos vazios de Lula e Flávio Bolsonaro nos debates, onde os 2 fogem do Renan a todo custo.' },
       { sprite: 'valete', name: 'Revista Valete', desc: 'Publicação cultural do MBL que fundamenta a batalha das ideias.', bubble: 'IDÉIAS PARA DEBATER!', bname: 'VALETE' },
-      { sprite: 'espadim', name: 'Espadim de Tiradentes', desc: 'Símbolo histórico da liberdade e dever cívico.', bubble: 'ONE-SHOT ESPADIM!', bname: 'ESPADIM' },
-      { sprite: 'livro', name: 'O Livro Amarelo', desc: 'Documento programático e plano de diretrizes da Missão.', bubble: 'X3 VOTOS ATIVO!', bname: 'LIVRO' },
+      { sprite: 'espadim', name: 'Espadim de Tiradentes', desc: 'Símbolo histórico da liberdade e dever cívico. Presenteada a Renan pelo seu Vice Aroldo Medina, tenente-coronel da reserva da polícia militar.', bubble: 'ONE-SHOT ESPADIM!', bname: 'ESPADIM' },
+      { sprite: 'livro', name: 'O Livro Amarelo', desc: 'Documento programático e plano de propostas da Missão.', bubble: 'X3 VOTOS ATIVO!', bname: 'LIVRO' },
       { sprite: 'classica', name: 'Bandeira Clássica e Imperial', desc: 'Brasões representativos dos ideais e do futuro do movimento.', bubble: 'COMBO + VOTOS!', bname: 'BANDEIRAS' }
     ];
 
@@ -3738,7 +3968,16 @@
         area.className = 'glossary-sprite-area';
 
         let hasSprite = false;
-        if (entry.sprite) {
+        if (entry.sword) {
+          try {
+            const img = document.createElement('img');
+            img.src = './assets/capa-renan.png';
+            img.alt = entry.name;
+            area.appendChild(img);
+            hasSprite = true;
+          } catch (e) { /* usa emoji */ }
+        }
+        if (!hasSprite && entry.sprite) {
           const spr = loadedSprites[entry.sprite];
           if (spr && spr.width && typeof spr.toDataURL === 'function') {
             try {
@@ -3764,11 +4003,21 @@
         const nameEl = document.createElement('div');
         nameEl.className = 'glossary-name';
         nameEl.textContent = entry.name;
-        const descEl = document.createElement('div');
-        descEl.className = 'glossary-desc';
-        descEl.textContent = entry.desc;
         info.appendChild(nameEl);
-        info.appendChild(descEl);
+
+        if (entry.quote) {
+          const quoteEl = document.createElement('div');
+          quoteEl.className = 'glossary-quote';
+          quoteEl.textContent = `"${entry.quote}"`;
+          info.appendChild(quoteEl);
+        }
+        if (entry.desc) {
+          const descEl = document.createElement('div');
+          descEl.className = 'glossary-desc';
+          descEl.textContent = entry.desc;
+          info.appendChild(descEl);
+        }
+
         card.appendChild(info);
 
         track.appendChild(card);
