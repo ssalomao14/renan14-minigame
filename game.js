@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.2';
+    const GAME_VERSION = '0.1.3';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -179,22 +179,32 @@
     let highscore = parseInt(localStorage.getItem('renan_mission_best') || '0', 10);
     let lastFinalScore = 0;
     let lastGameTime = 0;
+    let lastVotes = 0;
+    let isPaused = false;
+
+    // --- LEADERBOARD COMUNITÁRIO (backend plugável) ---
+    // API (opcional): GET {url}?top=10 -> { entries: [{ nick, votes }] } | [ { nick, votes } ]
+    //                  POST {url} (body {nick, votes}) -> 200/201. Sem URL, usa registro local.
+    const LEADERBOARD_API_URL = '';
+    const LB_STORAGE_KEY = 'renan_mission_lb';
+    let lbSubmittedThisRun = false;
+    let lastLbNick = '';
 
     // --- SISTEMA OFICIAL DE PATENTES (6 NÍVEIS) ---
     const RANK_TIERS = [
-      { min: 5500, title: "Alexandre, O Grande", isGold: true },
-      { min: 3500, title: "General da Missão", isGold: true },
-      { min: 2000, title: "Coronel da Missão", isGold: true },
-      { min: 1000, title: "Capitão da Missão", isGold: false },
-      { min: 400,  title: "Soldado da Missão", isGold: false },
-      { min: 0,    title: "Recruta da Missão", isGold: false }
+      { min: 100000, title: "Alexandre, O Grande", isGold: true },
+      { min: 50000, title: "General da Missão", isGold: true },
+      { min: 25000, title: "Coronel da Missão", isGold: true },
+      { min: 10000, title: "Capitão da Missão", isGold: false },
+      { min: 3000, title: "Soldado da Missão", isGold: false },
+      { min: 0, title: "Recruta da Missão", isGold: false }
     ];
 
     let currentRankTier = RANK_TIERS[RANK_TIERS.length - 1];
 
-    function getRankByScore(scoreVal) {
+    function getRankByVotes(voteVal) {
       for (const tier of RANK_TIERS) {
-        if (scoreVal >= tier.min) {
+        if (voteVal >= tier.min) {
           return tier;
         }
       }
@@ -220,7 +230,7 @@
     // Câmera com aspecto uniforme (evita distorção)
     const VIEW = { scale: 1, ox: 0, oy: 0 };
     // Cache de valores do HUD para só escrever no DOM quando mudar
-    const hudCache = { votes: null, score: null, handcuffs: null, rank: null, mult: null, perk: null, squad: null, lives: null };
+    const hudCache = { votes: null, time: null, handcuffs: null, rank: null, mult: null, perk: null, squad: null, lives: null };
 
     function mostrarBanner(texto, tipo = "info", icone = "⚠️", mode = "action") {
       activeBanner = {
@@ -373,7 +383,6 @@
     // Ampliação dramática do "MACHISTA!" destacado ao colidir com o drone
     let machistaFlashTimer = 0;
 
-    let score = 0;
     let votes = 0;
     let obstaclesCleared = 0;
     let handcuffs = 0;
@@ -401,6 +410,15 @@
 
     // Prisioneiros capturados (MC e Ladrões) para dinâmica da Militante
     let prisonersHeld = 0;
+
+    // O MC capturado ainda está na "cadeia"? (libertado pela Militante → fuga com balão)
+    let mcInJail = false;
+
+    // MC escapando em corrida após ser libertado pela Militante
+    const escapingMCs = [];
+
+    // Avisos de reação em cadeia (inimigo gerado após neutralizar outro)
+    const chainSpawnWarnings = [];
 
     // Listas do Mundo
     let pulpits = [];
@@ -605,15 +623,19 @@
 
         // Auréola de Invencibilidade ou Escudo R14
         if (this.isInvincible()) {
-          ctx.save();
-          ctx.strokeStyle = '#ffd400';
-          ctx.lineWidth = 3.5;
-          ctx.shadowColor = '#ffd400';
-          ctx.shadowBlur = 14;
-          ctx.beginPath();
-          ctx.arc(this.x + this.w / 2, this.y + this.h / 2, 46, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
+          const ending = perkIsEnding();
+          const blinkOff = ending && perkBlinkOff();
+          if (!blinkOff) {
+            ctx.save();
+            ctx.strokeStyle = ending ? '#ff2d55' : '#ffd400';
+            ctx.lineWidth = ending ? 4.5 : 3.5;
+            ctx.shadowColor = ending ? '#ff2d55' : '#ffd400';
+            ctx.shadowBlur = ending ? 22 : 14;
+            ctx.beginPath();
+            ctx.arc(this.x + this.w / 2, this.y + this.h / 2, 46, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
         } else if (hasShield) {
           ctx.save();
           ctx.strokeStyle = '#3498db';
@@ -668,7 +690,21 @@
       },
 
       drawOncaRiding() {
+        const ending = perkIsEnding();
+        const blinkOff = ending && perkBlinkOff();
         ctx.save();
+        if (blinkOff) ctx.globalAlpha = 0.4;
+        if (ending && !blinkOff) {
+          ctx.save();
+          ctx.strokeStyle = '#ff2d55';
+          ctx.lineWidth = 4;
+          ctx.shadowColor = '#ff2d55';
+          ctx.shadowBlur = 18;
+          ctx.beginPath();
+          ctx.ellipse(this.x - 20 + 43, this.y + 10 + 22, 55, 34, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
         const oncaSprite = loadedSprites.onca;
         const rideBob = Math.sin(performance.now() * 0.018) * 2;
         const ox = this.x - 20;
@@ -1037,10 +1073,13 @@
     function handleInputStart() {
       audio.init();
 
-      // Toque durante o card de introdução = pula a apresentação (sem impacto no pulo)
+      // Pausado: ignora toque de pulo (retomar só pelo botão ou tecla P/Esc)
+      if (isPaused) return;
+
+      // Toque durante o card de introdução: pula a apresentação E aplica o pulo
+      // (jogador não pode ficar sem controle durante a pausa de slow-mo)
       if (activeCard) {
         skipIntroCard();
-        return;
       }
 
       if (gameState === STATE.MENU) {
@@ -1076,6 +1115,18 @@
 
     // Ouvintes de Eventos (Desktop + Touch Mobile)
     window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyP' || e.code === 'Escape') {
+        e.preventDefault();
+        if (!e.repeat) {
+          const gl = document.getElementById('glossary-modal');
+          if (gl && !gl.classList.contains('hidden')) {
+            closeGlossary();
+          } else {
+            togglePause();
+          }
+        }
+        return;
+      }
       if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
         if (!e.repeat) handleInputStart();
@@ -1601,7 +1652,7 @@
         this.h = 68;
         this.y = GROUND_Y - this.h;
         this.index = indexInSquad;
-        this.slowerSpeed = 24;
+        this.slowerSpeed = 12;
         this.neutralized = false;
         this.cleared = false;
         this.bubblePeriod = 2.3;
@@ -1676,7 +1727,7 @@
         } else {
           // Perseguidora: corre da esquerda para a direita SEMPRE mais rápido que o scroll
           // (dx = corrente da pista). Net = +persecSpeed px/s no cursor da tela.
-          const persecSpeed = 78;
+          const persecSpeed = 86;
           this.x += (currentSpeedPx + persecSpeed) * dt - dx;
         }
       }
@@ -1734,7 +1785,9 @@
         this.baseY = baseY;
         this.y = baseY;
         this.time = Math.random() * 5;
-        this.speedX = 70;
+        this.speedX = 120;
+        // Hitbox enxuta: corpo fino, permite desviar raspando com justiça
+        this.hitInset = { x: 14, y: 9 };
         this.cleared = false;
         this.neutralized = false;
         this.propellerAngle = 0;
@@ -2074,7 +2127,7 @@
       spawnGraceTimer = 1.0;
 
       // Zera o cache de HUD para forçar a primeira escrita no DOM
-      hudCache.votes = null; hudCache.score = null; hudCache.handcuffs = null;
+      hudCache.votes = null; hudCache.time = null; hudCache.handcuffs = null;
       hudCache.rank = null; hudCache.mult = null; hudCache.perk = null; hudCache.squad = null;
       hudCache.lives = null;
 
@@ -2088,7 +2141,6 @@
 
       currentSpeedPx = INITIAL_SPEED_PX;
       freezeTimer = 0;
-      score = 0;
       votes = 0;
       obstaclesCleared = 0;
       handcuffs = 0;
@@ -2114,6 +2166,10 @@
       thiefSquadCount = 0;
       thiefSquadCaught = 0;
       prisonersHeld = 0;
+      mcInJail = false;
+
+      chainSpawnWarnings.length = 0;
+      escapingMCs.length = 0;
 
       renan.reset();
 
@@ -2187,10 +2243,9 @@
       distanceCovered += effectiveSpeed;
 
       const currentMult = getActiveMultiplier();
-      score += dt * 10 * currentMult;
 
       // Verificação de promoção de patente com banner oficial
-      const newRank = getRankByScore(score);
+      const newRank = getRankByVotes(votes);
       if (newRank.title !== currentRankTier.title) {
         currentRankTier = newRank;
         mostrarBanner(`PROMOVIDO A ${newRank.title.toUpperCase()}!`, "rank", "🎖️", "global");
@@ -2263,14 +2318,17 @@
         if (!obs.cleared && obs.x + obs.w < renan.x && !obs.neutralized) {
           obs.cleared = true;
           obstaclesCleared++;
-          const pts = 50 * currentMult;
-          score += pts;
+          const pts = 200 * currentMult;
+          votes += pts;
           audio.playObstaclePass();
           addFloatingText(renan.x + 10, renan.y - 10, `+${pts}`, "#48bb78");
         }
 
         // Colisão com Renan (ignorada durante a graça de respawn)
-        if (spawnGraceTimer <= 0 && !obs.neutralized && checkAABB(renan.x + 2, renan.y + 4, renan.w - 4, renan.h - 4, obs.x + 2, obs.y + 4, obs.w - 4, obs.h - 4)) {
+        // Inset padrão 2/4, mas cada obstáculo pode definir hitInset próprio (ex.: drone menor p/ desvio justo)
+        const hx = (obs.hitInset && obs.hitInset.x != null) ? obs.hitInset.x : 2;
+        const hy = (obs.hitInset && obs.hitInset.y != null) ? obs.hitInset.y : 4;
+        if (spawnGraceTimer <= 0 && !obs.neutralized && checkAABB(renan.x + 2, renan.y + 4, renan.w - 4, renan.h - 4, obs.x + hx, obs.y + hy, obs.w - hx * 2, obs.h - hy * 2)) {
           handleObstacleCollision(obs, i);
           continue;
         }
@@ -2303,6 +2361,21 @@
         if (ft.life <= 0) floatingTexts.splice(i, 1);
       }
 
+      // Atualiza avisos de reação em cadeia (somem após o tempo)
+      for (let i = chainSpawnWarnings.length - 1; i >= 0; i--) {
+        chainSpawnWarnings[i].timer -= dt;
+        if (chainSpawnWarnings[i].timer <= 0) chainSpawnWarnings.splice(i, 1);
+      }
+
+      // MC fugindo de corrida (libertado pela militante)
+      for (let i = escapingMCs.length - 1; i >= 0; i--) {
+        const esc = escapingMCs[i];
+        esc.x -= (effectiveSpeed + esc.speed * dt);
+        esc.anim += dt;
+        esc.life -= dt;
+        if (esc.life <= 0) escapingMCs.splice(i, 1);
+      }
+
       if (cameraShake > 0) cameraShake = Math.max(0, cameraShake - 0.4);
 
       updateHudDisplay();
@@ -2314,7 +2387,7 @@
 
       if (type === 'valete') {
         cardMultiplierTimer = 5;
-        mostrarBanner("X2 PONTOS! VALETE ATIVO", "perk", "🃏");
+        mostrarBanner("X2 VOTOS! VALETE ATIVO", "perk", "🃏");
         addFloatingText(renan.x, renan.y - 20, "X2!", "#ffd400");
       } else if (type === 'livro') {
         bookInvincibleTimer = 4;
@@ -2334,18 +2407,17 @@
         addFloatingText(renan.x, renan.y - 24, "ONÇA!", "#e67e22");
       } else if (type === 'classica') {
         flagComboCount++;
-        const pts = (flagComboCount === 1 ? 50 : (flagComboCount === 2 ? 150 : 300 + (flagComboCount - 3) * 150)) * mult;
-        score += pts;
+        const pts = (flagComboCount === 1 ? 500 : (flagComboCount === 2 ? 1500 : 3000 + (flagComboCount - 3) * 1500)) * mult;
+        votes += pts;
         freezeTimer = 0.5;
-        mostrarBanner(`COMBO! +${pts} PONTOS`, "flag", "🚩");
+        mostrarBanner(`COMBO! +${pts} VOTOS`, "flag", "🚩");
         addFloatingText(renan.x, renan.y - 20, `+${pts}`, "#2ecc71");
       } else if (type === 'imperial') {
         imperialModeTimer = 6;
-        mostrarBanner("MODO IMPERIAL! X3 ATIVO", "flag", "👑");
-        addFloatingText(renan.x, renan.y - 25, "X3 PONTOS!", "#ffd400");
+        mostrarBanner("MODO IMPERIAL! X3 VOTOS ATIVO", "flag", "👑");
+        addFloatingText(renan.x, renan.y - 25, "X3 VOTOS!", "#ffd400");
       } else if (type === 'algema') {
         handcuffs++;
-        score += 30 * mult;
         mostrarBanner("+1 ALGEMA POLICIAL", "item", "⛓️");
         addFloatingText(renan.x, renan.y - 20, "+1 ALGEMA", "#ffd400");
       }
@@ -2361,41 +2433,76 @@
       return true;
     }
 
+    // Valor de votos de cada tipo de inimigo (base de todas as eliminações)
+    function getObstacleValue(obs) {
+      if (obs instanceof JornalistaObstacle) return 5000;
+      if (obs instanceof ExMblObstacle) return 2000;
+      if (obs instanceof McLatrocinioObstacle) return 2000;
+      if (obs instanceof LadraoObstacle) return 1000;
+      if (obs instanceof MilitanteChaser) return 2000;
+      if (obs instanceof TogaObstacle) return 4000;
+      return 200;
+    }
+
     function handleObstacleCollision(obs, index) {
-      // Espadim de Tiradentes (one-shot no obstáculo)
+      // Espadim de Tiradentes: elimina o inimigo pagando o valor dele + bônus
       if (hasSwordStrike) {
         hasSwordStrike = false;
         obs.neutralized = true;
+        const swordTotal = getObstacleValue(obs) + 200;
+        votes += swordTotal;
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 16);
-        mostrarBanner("GOLPE DE ESPADIM! +80", "perk", "⚔️");
-        score += 80;
+        addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(swordTotal)}`, '#ffd400');
+        mostrarBanner(`GOLPE DE ESPADIM! +${formatVotes(swordTotal)} VOTOS`, "perk", "⚔️");
         return;
       }
 
-      // Montado na Onça ou Invencível
+      // Montado na Onça ou Invencível: neutraliza e conta o valor de votos do obstáculo (+ bônus por usar a onça)
       if (renan.isInvincible()) {
+        const neutralizeVotes = getObstacleValue(obs);
+
+        const oncaBonus = oncaRidingTimer > 0 ? 500 : 0;
+        const total = neutralizeVotes + oncaBonus;
         obs.neutralized = true;
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 14);
-        score += 75;
-        mostrarBanner("ATROPELADO PELA ONÇA! +75", "perk", "🐆");
+        votes += total;
+        addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(total)}`, '#e67e22');
+        if (oncaRidingTimer > 0) {
+          mostrarBanner(`ATROPELADO PELA ONÇA! +${formatVotes(total)} VOTOS`, "perk", "🐆");
+        } else {
+          mostrarBanner(`INVENCÍVEL! +${formatVotes(total)} VOTOS`, "perk", "💛");
+        }
         return;
       }
 
       // Verificação de Stomp (pulo na cabeça)
       const isStomp = renan.vy > 0 && (renan.y + renan.h - renan.vy <= obs.y + 26);
 
+      // Escudo R14 absorve QUALQUER colisão lateral (o pulo na cabeça continua valendo recompensa)
+      if (hasShield && !isStomp) {
+        hasShield = false;
+        obs.neutralized = true;
+        spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#3498db', 12);
+        mostrarBanner("ESCUDO ABSORVEU O IMPACTO!", "perk", "🛡️");
+        cameraShake = 6;
+        return;
+      }
+
       if (obs instanceof JornalistaObstacle) {
         if (isStomp) {
           renan.vy = -8.8;
           obs.neutralize();
           votes += 5000;
-          score += 150;
           mostrarBanner("+5.000 VOTOS! LARGA O MICROFONE!", "reward", "🎤");
 
           // Drone extra surge após atraso mínimo seguro de 0.9s (fila do game loop)
+          // Nunca gera drone se já houver um no ar (evita drone empilhado atrás do outro)
           scheduleSpawn(0.9, () => {
-            if (obstacles.length < 4) {
-              obstacles.push(new DroneObstacle(V_WIDTH + 60, 420));
+            if (obstacles.length < 4 && !obstacles.some((o) => o instanceof DroneObstacle)) {
+              const d = new DroneObstacle(V_WIDTH + 60, 420);
+              obstacles.push(d);
+              mostrarBanner("AGRESSOR DE MULHER DETECTADO! DRONE DO CURY DESPACHADO!", "danger", "🚁", "global");
+              spawnChainWarning('right', '🚁', 'Drone');
             }
           });
           return;
@@ -2416,7 +2523,6 @@
           renan.vy = -8.6;
           obs.neutralized = true;
           votes += 2000;
-          score += 100;
           mostrarBanner("EX-MBL NEUTRALIZADO! +2.000 VOTOS", "reward", "👶");
           return;
         } else {
@@ -2438,17 +2544,20 @@
         if (isStomp) {
           renan.vy = -9;
           obs.neutralized = true;
-          score += 100;
           handcuffs++;
           prisonersHeld++;
+          mcInJail = true;
           votes += 2000;
           mostrarBanner("PRENDEU! +2.000 VOTOS +1 ALGEMA", "reward", "⛓️");
 
           // Militante surge após atraso seguro de 1.1s (fila do game loop)
+          // Nunca gera militante se já houver uma perseguindo (evita pilha de militantes)
           scheduleSpawn(1.1, () => {
-            if (obstacles.length < 4) {
-              obstacles.push(new MilitanteChaser(-40));
-              mostrarBanner("SOLTA ELE! MILITANTE CHEGANDO", "danger", "🚩", "global");
+            if (obstacles.length < 4 && !obstacles.some((o) => o instanceof MilitanteChaser)) {
+              const m = new MilitanteChaser(-40);
+              obstacles.push(m);
+              mostrarBanner("MILITANTE GERADA! SOLTA ELE!", "danger", "🚩", "global");
+              spawnChainWarning('left', '🚩', 'Militante');
             }
           });
           return;
@@ -2472,18 +2581,19 @@
           handcuffs++;
           prisonersHeld++;
           thiefSquadCaught++;
-          score += 60;
           mostrarBanner("+1.000 VOTOS +1 ALGEMA!", "reward", "📱");
 
           if (thiefSquadCaught >= 3) {
             thiefSquadActive = false;
-            score += 150;
-            mostrarBanner("QUADRILHA DESMANTELADA! +150", "reward", "🏆", "global");
+            votes += 500;
+            mostrarBanner("QUADRILHA DESMANTELADA! +500 VOTOS", "reward", "🏆", "global");
 
             scheduleSpawn(1.0, () => {
-              if (obstacles.length < 4) {
-                obstacles.push(new MilitanteChaser(-40));
-                mostrarBanner("SOLTA ELE! MILITANTE CHEGANDO", "danger", "🚩", "global");
+              if (obstacles.length < 4 && !obstacles.some((o) => o instanceof MilitanteChaser)) {
+                const m = new MilitanteChaser(-40);
+                obstacles.push(m);
+                mostrarBanner("MILITANTE GERADA! SOLTA ELE!", "danger", "🚩", "global");
+                spawnChainWarning('left', '🚩', 'Militante');
               }
             });
           }
@@ -2494,12 +2604,14 @@
           renan.vy = -8.6;
           obs.neutralized = true;
           votes += 2000;
-          score += 80;
           mostrarBanner("+2.000 VOTOS! MILITANTE NEUTRALIZADA", "reward", "⭐");
 
           scheduleSpawn(0.9, () => {
-            if (obstacles.length < 4) {
-              obstacles.push(new DroneObstacle(V_WIDTH + 60, 420));
+            if (obstacles.length < 4 && !obstacles.some((o) => o instanceof DroneObstacle)) {
+              const d = new DroneObstacle(V_WIDTH + 60, 420);
+              obstacles.push(d);
+              mostrarBanner("AGRESSOR DE MULHER DETECTADO! DRONE DO CURY DESPACHADO!", "danger", "🚁", "global");
+              spawnChainWarning('right', '🚁', 'Drone');
             }
           });
           return;
@@ -2512,8 +2624,12 @@
           if (prisonersHeld > 0) {
             prisonersHeld--;
             if (handcuffs > 0) handcuffs--;
-            score = Math.max(0, score - 60);
             mostrarBanner("PRESO LIBERTADO PELA MILITANTE! -1 VIDA", "danger", "🚩");
+            if (mcInJail) {
+              // Soltou o MC capturado: ele foge em disparada com deboche
+              mcInJail = false;
+              spawnMcEscape();
+            }
           } else {
             mostrarBanner("PETISTA! TRAIDOR! -1 VIDA", "danger", "🚩");
           }
@@ -2530,14 +2646,14 @@
         renan.isGrounded = false;
         renan.isFastFalling = false;
         renan.currentPlatform = null;
-        score = Math.max(0, score - 40);
         obs.neutralized = true;
         cameraShake = 5;
         audio.playHit();
         buzz(50);
         freezeTimer = 0.9;
         machistaFlashTimer = 1.0;
-        mostrarBanner("MACHISTA! -40 PONTOS · -1 VIDA", "danger", "🚁");
+        if (votes > 0) votes = Math.max(0, votes - 2000);
+        mostrarBanner("MACHISTA! -2.000 VOTOS · -1 VIDA", "danger", "🚁");
         return;
       } else if (obs instanceof TogaObstacle) {
         // Espadim/Onça já retornaram no topo; aqui: escudo > stomp > tropeço
@@ -2552,13 +2668,12 @@
           // STOMP neutraliza: amassa a Toga com a fralda
           renan.vy = -8.6;
           obs.neutralized = true;
-          score += 120;
           votes += 4000;
           cameraShake = 3;
           buzz(30);
           spawnParticles(obs.x + obs.w / 2, obs.y + 10, '#ffd400', 12);
-          mostrarBanner("TOGA AMASSADA! +120 PTS +4.000 VOTOS", "reward", "⚖️");
-          addFloatingText(obs.x + obs.w / 2, obs.y - 10, "+120", '#ffd400');
+          mostrarBanner("TOGA AMASSADA! +4.000 VOTOS", "reward", "⚖️");
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, "+4.000", '#ffd400');
           return;
         }
 
@@ -2601,6 +2716,103 @@
       mostrarBanner("-1 VIDA! COLISÃO!", "danger", "💥");
     }
 
+    // Aviso de reação em cadeia: inimigo gerado na borda 'right' (Drone) ou 'left' (Militante)
+    function spawnChainWarning(side, emoji, label) {
+      chainSpawnWarnings.push({ side, emoji, label: label.toUpperCase(), timer: 1.8 });
+      cameraShake = Math.max(cameraShake, 6);
+    }
+
+    function drawChainWarnings() {
+      if (chainSpawnWarnings.length === 0) return;
+      const now = performance.now();
+      for (const w of chainSpawnWarnings) {
+        const timeLeft = Math.max(0, w.timer / 1.8);
+        const bounce = 0.5 + 0.5 * Math.sin(now * 0.02);
+        const x = w.side === 'left' ? 64 : V_WIDTH - 64;
+        const y = 116 + bounce * 8;
+        const ringR = 26 + bounce * 10;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, w.timer));
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        // Anel pulsante de alerta
+        ctx.strokeStyle = 'rgba(255, 70, 80,' + (0.85 * timeLeft) + ')';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(x, y, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+        // Círculo de fundo
+        ctx.fillStyle = 'rgba(130, 12, 22,' + (0.32 * timeLeft) + ')';
+        ctx.beginPath();
+        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.fill();
+        // Emoji do inimigo gerado
+        ctx.font = '24px sans-serif';
+        ctx.fillText(w.emoji, x, y - 1);
+        // Rótulo pulsante em negrito com contorno
+        ctx.font = '900 16px "Arial Black", sans-serif';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 5;
+        ctx.strokeText(w.label, x, y + 34);
+        ctx.fillStyle = '#ff5e5e';
+        ctx.fillText(w.label, x, y + 34);
+        ctx.restore();
+      }
+    }
+
+    // MC libertado pela Militante foge em disparada com balão de deboche
+    function spawnMcEscape() {
+      escapingMCs.push({
+        x: renan.x + 30,
+        y: GROUND_Y - 60,
+        speed: 175,
+        life: 1.7,
+        anim: 0
+      });
+    }
+
+    function drawEscapingMc(e) {
+      const w = 38;
+      const h = 54;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, e.life * 1.2));
+      const bob = Math.sin(e.anim * 14) * 2.5;
+      const x = e.x;
+      const y = e.y + bob;
+      // Corpo verde-limão (estilo do MC) correndo pra fora da tela
+      ctx.fillStyle = '#d4e157';
+      ctx.strokeStyle = '#0b1528';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.roundRect(x, y + 18, w, h - 26, 7);
+      ctx.fill();
+      ctx.stroke();
+      // Boné vermelho
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(x + 6, y + 2, 26, 7);
+      ctx.fillRect(x + 1, y + 7, 17, 4);
+      // Cabeça
+      ctx.fillStyle = '#fbd4b4';
+      ctx.beginPath();
+      ctx.arc(x + w / 2, y + 12, 8, 0, Math.PI * 2);
+      ctx.fill();
+      // Corrente dourada
+      ctx.fillStyle = '#ffd400';
+      for (let cx = x + 9; cx <= x + w - 10; cx += 5) {
+        ctx.beginPath();
+        ctx.arc(cx, y + 25, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Microfone
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🎤', x + w / 2, y + 43);
+      // Balão de deboche
+      drawSpeechBubble(x + w / 2, y - 4, 'HIHI LEVEI VANTAGI', 'MC');
+      ctx.restore();
+    }
+
     // --- SPAWNER PROGRESSIVO POR TEMPO DE CORRIDA (0-15s, 15-40s, 40s+) ---
     // NUNCA spawna 2 obstáculos na mesma posição X
     function spawnNextFeature() {
@@ -2629,11 +2841,9 @@
         } else {
           obstacles.push(new TogaObstacle(spawnX));
         }
-        return;
-      }
 
       // FASE 2 (15-40s): Acrescenta MC Latrocínio e DRONE do Cury
-      if (gameTime < 40) {
+      } else if (gameTime < 40) {
         const r = Math.random();
         if (r < 0.26) {
           pulpits.push(createNextPulpit(spawnX));
@@ -2641,7 +2851,7 @@
           obstacles.push(new ExMblObstacle(spawnX));
         } else if (r < 0.60) {
           obstacles.push(new McLatrocinioObstacle(spawnX));
-        } else if (r < 0.74) {
+        } else if (r < 0.74 && !obstacles.some((o) => o instanceof DroneObstacle)) {
           obstacles.push(new DroneObstacle(spawnX, 410));
         } else if (r < 0.86) {
           obstacles.push(new LadraoObstacle(spawnX, 1));
@@ -2650,31 +2860,31 @@
         } else {
           obstacles.push(new TogaObstacle(spawnX));
         }
-        return;
-      }
 
       // FASE 3 (Após 40s): Todos os tipos, incluindo minichefia de ladrões
-      const r = Math.random();
-      if (r < 0.22) {
-        pulpits.push(createNextPulpit(spawnX));
-      } else if (r < 0.40) {
-        obstacles.push(new JornalistaObstacle(spawnX));
-      } else if (r < 0.54) {
-        obstacles.push(new McLatrocinioObstacle(spawnX));
-      } else if (r < 0.66) {
-        obstacles.push(new DroneObstacle(spawnX, 410));
-      } else if (r < 0.88 && !thiefSquadActive && obstacles.length <= 1) {
-        // Trio de ladrões bem espaçado
-        thiefSquadActive = true;
-        thiefSquadCount = 3;
-        thiefSquadCaught = 0;
-        obstacles.push(new LadraoObstacle(spawnX, 1));
-        obstacles.push(new LadraoObstacle(spawnX + 90, 2));
-        obstacles.push(new LadraoObstacle(spawnX + 180, 3));
-      } else if (r < 0.94) {
-        obstacles.push(new ExMblObstacle(spawnX));
       } else {
-        obstacles.push(new TogaObstacle(spawnX));
+        const r = Math.random();
+        if (r < 0.22) {
+          pulpits.push(createNextPulpit(spawnX));
+        } else if (r < 0.40) {
+          obstacles.push(new JornalistaObstacle(spawnX));
+        } else if (r < 0.54) {
+          obstacles.push(new McLatrocinioObstacle(spawnX));
+        } else if (r < 0.66 && !obstacles.some((o) => o instanceof DroneObstacle)) {
+          obstacles.push(new DroneObstacle(spawnX, 410));
+        } else if (r < 0.88 && !thiefSquadActive && obstacles.length <= 1) {
+          // Trio de ladrões bem espaçado (116px entre si p/ dar respiro entre pulos)
+          thiefSquadActive = true;
+          thiefSquadCount = 3;
+          thiefSquadCaught = 0;
+          obstacles.push(new LadraoObstacle(spawnX, 1));
+          obstacles.push(new LadraoObstacle(spawnX + 116, 2));
+          obstacles.push(new LadraoObstacle(spawnX + 232, 3));
+        } else if (r < 0.94) {
+          obstacles.push(new ExMblObstacle(spawnX));
+        } else {
+          obstacles.push(new TogaObstacle(spawnX));
+        }
       }
 
       // Apresenta em slow-mo qualquer tipo de inimigo inédito desta sessão
@@ -2729,11 +2939,38 @@
       return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     }
 
+    function formatTimeSeconds(t) {
+      const s = Math.max(0, Math.floor(t));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${m}:${r.toString().padStart(2, '0')}`;
+    }
+
+    // --- AVISO DE PERK ACABANDO ---
+    // Últimos 2s de invencibilidade (onça/imperial/livro): efeitos piscam em vermelho
+    function getLowestPerkTimer() {
+      let t = Infinity;
+      if (oncaRidingTimer > 0) t = Math.min(t, oncaRidingTimer);
+      if (imperialModeTimer > 0) t = Math.min(t, imperialModeTimer);
+      if (bookInvincibleTimer > 0) t = Math.min(t, bookInvincibleTimer);
+      return t;
+    }
+
+    function perkIsEnding() {
+      const t = getLowestPerkTimer();
+      return t !== Infinity && t < 2.0;
+    }
+
+    function perkBlinkOff() {
+      return Math.floor(performance.now() / 160) % 2 === 0;
+    }
+
     function updateHudDisplay() {
       // Só escreve no DOM quando o valor muda — reduz operações DOM de ~360/s para ~30/s
-      const vF = formatVotes(votes); const sF = Math.floor(score); const hF = handcuffs;
+      const vF = formatVotes(votes); const hF = handcuffs;
+      const tF = formatTimeSeconds(gameTime);
       if (hudCache.votes !== vF) { hudCache.votes = vF; document.getElementById('hud-votes').textContent = vF; }
-      if (hudCache.score !== sF)   { hudCache.score = sF;   document.getElementById('hud-score').textContent = sF; }
+      if (hudCache.time !== tF)  { hudCache.time = tF;  document.getElementById('hud-time').textContent = tF; }
       if (hudCache.handcuffs !== hF) { hudCache.handcuffs = hF; document.getElementById('hud-handcuffs').textContent = hF; }
 
       const livesKey = '❤'.repeat(Math.max(0, lives));
@@ -2742,7 +2979,7 @@
         document.getElementById('hud-lives').textContent = livesKey || '—';
       }
 
-      const currentRank = getRankByScore(score);
+      const currentRank = getRankByVotes(votes);
       if (hudCache.rank !== currentRank.title) {
         hudCache.rank = currentRank.title;
         document.getElementById('hud-rank').textContent = currentRank.title;
@@ -2768,6 +3005,13 @@
         hudCache.perk = perkKey;
         if (perkKey) { perkEl.style.display = 'inline-flex'; perkEl.textContent = perkKey; }
         else perkEl.style.display = 'none';
+      }
+
+      // Invencibilidade na reta final: badge pisca para sinalizar o fim iminente
+      if (perkKey) {
+        perkEl.classList.toggle('ending', perkIsEnding());
+      } else {
+        perkEl.classList.remove('ending');
       }
 
       // Status Minichefia Presos n/3
@@ -2807,7 +3051,6 @@
             p.diaperScale = 1.4;
             p.stumbled = false;
             votes += 1000;
-            score += 100;
             cameraShake = 3;
             audio.playDiaperPlaced();
             buzz(30);
@@ -2844,8 +3087,7 @@
             return;
           }
 
-          score = Math.max(0, score - 15);
-          mostrarBanner(`TROPEÇOU! -15 · RESTAM ${lives} ${lives === 1 ? 'VIDA' : 'VIDAS'}`, "danger", "😵");
+          mostrarBanner(`TROPEÇOU! · RESTAM ${lives} ${lives === 1 ? 'VIDA' : 'VIDAS'}`, "danger", "😵");
           spawnParticles(renan.x + renan.w / 2, renan.y + renan.h, '#ffffff', 6);
         }
       }
@@ -3017,8 +3259,14 @@
         ctx.restore();
       });
 
+      // MC escapando de corrida (fuga + balão de deboche)
+      for (const esc of escapingMCs) drawEscapingMc(esc);
+
       // BANNER PRINCIPAL DE AVISOS NO TOPO
       drawActiveBanner();
+
+      // Indicador pulsante de reação em cadeia (de onde o inimigo gerado vem)
+      drawChainWarnings();
 
       // Card de apresentação "PRIMEIRO CONFRONTO" (acima de tudo)
       drawIntroCard();
@@ -3041,7 +3289,7 @@
         ctx.shadowColor = 'rgba(0,0,0,0.9)';
         ctx.fillStyle = '#ffffff';
         ctx.font = '900 26px sans-serif';
-        ctx.fillText('-40 PONTOS · -1 VIDA', 0, 34);
+        ctx.fillText('-2.000 VOTOS · -1 VIDA', 0, 34);
         ctx.restore();
       }
 
@@ -3054,6 +3302,25 @@
       ctx.textBaseline = 'alphabetic';
       ctx.fillText('v' + GAME_VERSION, 8, V_HEIGHT - 8);
       ctx.restore();
+
+      // Overlay de PAUSA (desenhado por último para não ser encoberto)
+      if (isPaused) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(4, 9, 18, 0.72)';
+        ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#ffd400';
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = '#ffd400';
+        ctx.font = '900 34px "Arial Black", sans-serif';
+        ctx.fillText('PAUSADO', V_WIDTH / 2, V_HEIGHT / 2 - 30);
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = '#c6d3ea';
+        ctx.font = '900 14px "Arial Black", sans-serif';
+        ctx.fillText('TOQUE EM ▶ OU PRESSIONE P PARA CONTINUAR', V_WIDTH / 2, V_HEIGHT / 2 + 20);
+        ctx.restore();
+      }
 
       ctx.restore();
     }
@@ -3077,7 +3344,7 @@
 
       // Execução protegida por try/catch para que falhas transitórias não matem o loop
       try {
-        if (gameState === STATE.PLAYING) {
+        if (gameState === STATE.PLAYING && !isPaused) {
           updateWorld(dt);
         }
         render();
@@ -3111,11 +3378,43 @@
 
     function startGame() {
       audio.init();
+      isPaused = false;
+      syncPauseUi();
       gameState = STATE.PLAYING;
       resetWorld();
       overlayStart.classList.add('hidden');
       overlayGameOver.classList.add('hidden');
+      // Sessão nova: libera registro no ranking e fecha menu de share
+      lbSubmittedThisRun = false;
+      const shareMenuEl = document.getElementById('share-menu');
+      if (shareMenuEl) shareMenuEl.classList.add('hidden');
+      const lbSubmitBtn = document.getElementById('lb-submit');
+      if (lbSubmitBtn) lbSubmitBtn.disabled = false;
     }
+
+    function syncPauseUi() {
+      const pIcon = document.getElementById('pause-icon');
+      const plIcon = document.getElementById('play-icon');
+      if (!pIcon || !plIcon) return;
+      pIcon.style.display = isPaused ? 'none' : 'block';
+      plIcon.style.display = isPaused ? 'block' : 'none';
+    }
+
+    function togglePause() {
+      if (gameState !== STATE.PLAYING) return;
+      isPaused = !isPaused;
+      if (!isPaused) audio.init();
+      syncPauseUi();
+    }
+
+    document.getElementById('pause-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePause();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && gameState === STATE.PLAYING && !isPaused) togglePause();
+    });
 
     function triggerGameOver(reasonText) {
       if (gameState === STATE.GAMEOVER) return;
@@ -3123,28 +3422,48 @@
       audio.playHit();
       cameraShake = 12;
 
-      // Salva recorde
-      const finalScore = Math.floor(score);
-      lastFinalScore = finalScore;
+      // Salva recorde: cada algema vale +2.000 votos no fechamento
+      const VOTES_PER_HANDCUFF = 2000;
+      const finalVotes = votes + handcuffs * VOTES_PER_HANDCUFF;
+      lastFinalScore = finalVotes;
       lastGameTime = gameTime;
+      lastVotes = finalVotes;
 
-      const isNewRecord = finalScore > highscore;
+      const isNewRecord = finalVotes > highscore;
       if (isNewRecord) {
-        highscore = finalScore;
+        highscore = finalVotes;
         localStorage.setItem('renan_mission_best', highscore.toString());
         audio.playNewRecord();
         buzz([40, 30, 40, 30, 90]);
       }
 
       // Obtém a Patente conquistada
-      const rank = getRankByScore(finalScore);
+      const rank = getRankByVotes(finalVotes);
 
       // Preenche dados da tela final
       document.getElementById('go-time-label').textContent = `Sobreviveu por ${gameTime.toFixed(1)}s`;
-      document.getElementById('go-score').textContent = finalScore;
-      document.getElementById('go-votes').textContent = formatVotes(votes);
+      document.getElementById('go-score').textContent = handcuffs;
+      document.getElementById('go-votes').textContent = formatVotes(finalVotes);
       document.getElementById('go-obstacles').textContent = obstaclesCleared;
-      document.getElementById('go-record').textContent = highscore;
+      document.getElementById('go-record').textContent = formatVotes(highscore);
+
+      // Nota de conversão de algemas em votos
+      const convNoteEl = document.getElementById('go-conv-note');
+      if (convNoteEl) {
+        if (handcuffs > 0) {
+          convNoteEl.style.display = 'block';
+          convNoteEl.textContent = `${handcuffs} algemas → +${formatVotes(handcuffs * VOTES_PER_HANDCUFF)} votos`;
+        } else {
+          convNoteEl.style.display = 'none';
+        }
+      }
+
+      // Prepara o ranking comunitário (esconde menu de share e carrega a lista)
+      const shareMenuEl = document.getElementById('share-menu');
+      if (shareMenuEl) shareMenuEl.classList.add('hidden');
+      const lbSubmitBtn = document.getElementById('lb-submit');
+      if (lbSubmitBtn) lbSubmitBtn.disabled = false;
+      refreshLeaderboard();
 
       // Exibe a Patente com destaque visual
       const rankBoxEl = document.getElementById('go-rank-box');
@@ -3178,109 +3497,177 @@
       startGame();
     });
 
-    // --- COMPARTILHAMENTO E EXPORTAÇÃO DE CARD ---
-    const btnSaveImage = document.getElementById('btn-save-image');
-
-    btnShare.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const rank = getRankByScore(lastFinalScore);
+    // --- COMPARTILHAMENTO ---
+    function buildSharePayload() {
       const shareUrl = window.location.href;
-      const shareText = `Fiz ${lastFinalScore} pontos (${lastGameTime.toFixed(1)}s) e alcancei a patente "${rank.title}" no Renan em Missão! Consegue me superar? ${shareUrl}`;
+      const text = `Consegui ${formatVotes(lastVotes || 0)} votos para o Renan! Jogue também e ajude o Renan a conseguir mais votos para essa Eleição!`;
+      return { text, url: shareUrl, full: `${text}\n${shareUrl}` };
+    }
 
-      if (navigator.share) {
+    btnShare.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menu = document.getElementById('share-menu');
+      if (!menu) return;
+      const willShow = menu.classList.contains('hidden');
+      menu.classList.toggle('hidden');
+      if (willShow) {
+        menu.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        const nickEl = document.getElementById('lb-nick');
+        if (nickEl) nickEl.blur();
+      }
+    });
+
+    document.querySelectorAll('.share-net').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const { text, url, full } = buildSharePayload();
+        const net = btn.dataset.net;
+        const menu = document.getElementById('share-menu');
+
+        if (net === 'twitter') {
+          window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(full)}`, '_blank');
+        } else if (net === 'whatsapp') {
+          window.open(`https://wa.me/?text=${encodeURIComponent(full)}`, '_blank');
+        } else if (net === 'facebook') {
+          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank');
+        } else if (net === 'instagram') {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(full).catch(() => {});
+          }
+          window.open('https://www.instagram.com/', '_blank');
+          showShareToast('Texto e link copiados! Cole na legenda do Instagram.');
+        }
+
+        if (menu) menu.classList.add('hidden');
+      });
+    });
+
+    // --- RANKING COMUNITÁRIO ---
+    function getLocalLeaderboard() {
+      try {
+        const raw = localStorage.getItem(LB_STORAGE_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return (Array.isArray(arr) ? arr : []).slice().sort((a, b) => (b.votes || 0) - (a.votes || 0));
+      } catch (err) {
+        return [];
+      }
+    }
+
+    function saveLocalLeaderboard(list) {
+      try {
+        localStorage.setItem(LB_STORAGE_KEY, JSON.stringify(list.slice(0, 50)));
+      } catch (err) {}
+    }
+
+    async function fetchLeaderboard(top = 10) {
+      if (LEADERBOARD_API_URL) {
         try {
-          await navigator.share({
-            title: "Renan em Missão: Corrida do Livro Amarelo",
-            text: shareText,
-            url: shareUrl
+          const sep = LEADERBOARD_API_URL.includes('?') ? '&' : '?';
+          const resp = await fetch(`${LEADERBOARD_API_URL}${sep}top=${top}`, { mode: 'cors' });
+          if (resp.ok) {
+            const data = await resp.json();
+            const entries = Array.isArray(data) ? data : (data && data.entries);
+            if (Array.isArray(entries)) {
+              return entries
+                .map((it) => ({ nick: String(it.nick || 'Anônimo').slice(0, 16), votes: Number(it.votes) || 0 }))
+                .sort((a, b) => b.votes - a.votes)
+                .slice(0, top);
+            }
+          }
+        } catch (err) {}
+        return null;
+      }
+      return getLocalLeaderboard().slice(0, top);
+    }
+
+    async function submitLeaderboard(nick, votes) {
+      const entry = { nick: (nick || 'Anônimo').slice(0, 16) || 'Anônimo', votes: Math.floor(votes) };
+      if (LEADERBOARD_API_URL) {
+        try {
+          const resp = await fetch(LEADERBOARD_API_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entry)
           });
-          return;
+          if (resp.ok) {
+            lbSubmittedThisRun = true;
+            return { ok: true, message: 'Resultado registrado na comunidade!' };
+          }
+          return { ok: false, message: 'Falha ao registrar (servidor recusou).' };
         } catch (err) {
-          // Usuário cancelou ou navegador barrou, segue para wa.me/fallback
+          return { ok: false, message: 'Sem conexão com o servidor do ranking.' };
         }
       }
+      const list = getLocalLeaderboard();
+      list.push(Object.assign({}, entry, { at: Date.now() }));
+      saveLocalLeaderboard(list);
+      lbSubmittedThisRun = true;
+      return { ok: true, message: 'Registrado (modo local — conecte um backend para ranking comunitário).' };
+    }
 
-      // Fallback oficial via WhatsApp e Área de Transferência
-      const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-      window.open(waUrl, '_blank');
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(shareText).then(() => {
-          showShareToast("Link e pontuação prontos para envio!");
-        });
+    function renderLeaderboardList(entries) {
+      const listEl = document.getElementById('lb-list');
+      if (!listEl) return;
+      if (!entries || !entries.length) {
+        listEl.innerHTML = '<div class="lb-empty">Nenhum resultado ainda. Seja o primeiro!</div>';
+        return;
       }
-    });
+      const medals = ['🥇', '🥈', '🥉'];
+      listEl.innerHTML = entries
+        .map((it, i) => {
+          const pos = i + 1;
+          const isMine = lbSubmittedThisRun && it.nick === lastLbNick && it.votes === lastFinalScore;
+          const badge = pos <= 3 ? `<span class="lb-medal">${medals[pos - 1]}</span>` : `<span class="lb-pos">${pos}</span>`;
+          return `<div class="lb-row${isMine ? ' mine' : ''}">${badge}<span class="lb-nick">${escapeHtml(it.nick)}</span><span class="lb-votes">${formatVotes(it.votes)} votos</span></div>`;
+        })
+        .join('');
+    }
 
-    // Baixar Card de Desempenho como Imagem PNG via Canvas (Protegido contra crash)
-    btnSaveImage.addEventListener('click', (e) => {
-      e.stopPropagation();
-      try {
-        const rank = getRankByScore(lastFinalScore);
-        const cardCanvas = document.createElement('canvas');
-        cardCanvas.width = 600;
-        cardCanvas.height = 420;
-        const cCtx = cardCanvas.getContext('2d');
-        if (!cCtx) throw new Error("Contexto 2D indisponível");
-
-        // Fundo Azul-Marinho Oficial #0f1f3d
-        cCtx.fillStyle = '#0f1f3d';
-        cCtx.fillRect(0, 0, 600, 420);
-
-        // Borda Dourada Imperial
-        cCtx.strokeStyle = '#ffd400';
-        cCtx.lineWidth = 8;
-        cCtx.strokeRect(12, 12, 576, 396);
-
-        // Título Oficial
-        cCtx.fillStyle = '#ffd400';
-        cCtx.font = '900 28px sans-serif';
-        cCtx.textAlign = 'center';
-        cCtx.fillText('RENAN EM MISSÃO: O LIVRO AMARELO', 300, 58);
-
-        // Patente
-        cCtx.fillStyle = '#ffffff';
-        cCtx.font = 'bold 16px sans-serif';
-        cCtx.fillText('PATENTE ALCANÇADA:', 300, 105);
-
-        cCtx.fillStyle = '#ffd400';
-        cCtx.font = '900 24px sans-serif';
-        cCtx.fillText(rank.title.toUpperCase(), 300, 140);
-
-        // Estatísticas
-        cCtx.fillStyle = '#182747';
-        cCtx.fillRect(60, 175, 480, 140);
-        cCtx.strokeStyle = 'rgba(255,212,0,0.3)';
-        cCtx.strokeRect(60, 175, 480, 140);
-
-        cCtx.fillStyle = '#94a3b8';
-        cCtx.font = 'bold 14px sans-serif';
-        cCtx.fillText('PONTOS', 140, 210);
-        cCtx.fillText('TEMPO', 300, 210);
-        cCtx.fillText('FRALDAS', 460, 210);
-
-        cCtx.fillStyle = '#ffd400';
-        cCtx.font = '900 32px sans-serif';
-        cCtx.fillText(lastFinalScore.toString(), 140, 260);
-        cCtx.fillText(`${lastGameTime.toFixed(1)}s`, 300, 260);
-        cCtx.fillText(formatVotes(votes), 460, 260);
-
-        // Frase Desafio
-        cCtx.fillStyle = '#ffffff';
-        cCtx.font = 'italic 16px sans-serif';
-        cCtx.fillText('"Debate sem fujões — Quem tem missão não arrega!"', 300, 360);
-
-        // Chamada única e protegida para toDataURL
-        const dataUrl = cardCanvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.download = `renan-em-missao-recorde-${lastFinalScore}.png`;
-        a.href = dataUrl;
-        a.click();
-        showShareToast("Card baixado com sucesso!");
-      } catch (err) {
-        console.warn("Falha ao exportar imagem canvas, acionando fallback:", err);
-        showShareToast("Card compartilhado em texto!");
+    async function refreshLeaderboard() {
+      const noteEl = document.getElementById('lb-note');
+      const entries = await fetchLeaderboard(10);
+      if (entries) {
+        renderLeaderboardList(entries);
+        if (noteEl) {
+          noteEl.textContent = LEADERBOARD_API_URL
+            ? 'Ranking da comunidade atualizado ao vivo.'
+            : 'Modo local: conecte um backend para o ranking comunitário.';
+        }
+      } else {
+        renderLeaderboardList(getLocalLeaderboard().slice(0, 10));
+        if (noteEl) noteEl.textContent = 'Servidor indisponível — mostrando registros locais.';
       }
-    });
+    }
+
+    const lbSubmitEl = document.getElementById('lb-submit');
+    if (lbSubmitEl) {
+      lbSubmitEl.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (lastFinalScore <= 0) {
+          showShareToast('Jogue primeiro para registrar um resultado!');
+          return;
+        }
+        if (lbSubmittedThisRun) {
+          showShareToast('Resultado desta partida já foi registrado.');
+          return;
+        }
+        const nickEl = document.getElementById('lb-nick');
+        lastLbNick = (nickEl ? nickEl.value.trim() : '') || 'Anônimo';
+        lbSubmitEl.disabled = true;
+        const res = await submitLeaderboard(lastLbNick, lastFinalScore);
+        showShareToast(res.message);
+        if (res.ok) {
+          await refreshLeaderboard();
+        } else {
+          lbSubmitEl.disabled = false;
+        }
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
 
     function showShareToast(msg = "Copiado para a área de transferência!") {
       shareToast.textContent = msg;
@@ -3290,19 +3677,130 @@
       }, 2600);
     }
 
-    // Toggle de som
-    soundBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      audio.enabled = !audio.enabled;
+    // Toggle de som (estado persistido no localStorage)
+    function syncSoundUi() {
       if (audio.enabled) {
-        audio.init();
         soundOn.style.display = 'block';
         soundOff.style.display = 'none';
       } else {
         soundOn.style.display = 'none';
         soundOff.style.display = 'block';
       }
+    }
+
+    soundBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audio.enabled = !audio.enabled;
+      localStorage.setItem('renan_mission_muted', audio.enabled ? '0' : '1');
+      if (audio.enabled) audio.init();
+      syncSoundUi();
     });
+
+    // --- GLOSSÁRIO DA LORE (MODAL) ---
+    const btnGlossary = document.getElementById('btn-glossary');
+    const glossaryModal = document.getElementById('glossary-modal');
+    const glossaryClose = document.getElementById('glossary-close');
+
+    // Glossário repaginado: cards horizontais com o sprite (maior que no jogo) + balão original do personagem
+    const GLOSSARY_ENTRIES = [
+      { sprite: 'run1', name: 'Renan Santos', desc: 'Protagonista, líder da Missão.', bubble: 'Vamos para o Livro Amarelo!', bname: 'RENAN' },
+      { sprite: 'onca', name: 'Onça Pintada', desc: 'Mascote da Missão e símbolo de preservação e soberania.', bubble: 'GRRR! ATROPELO QUEM OUSAR!', bname: 'ONÇA' },
+      { sprite: 'jornalista', name: 'Jornalista', desc: 'Caricatura das sabatinas enviesadas de campanha.', bubble: 'E O FEMINICÍDIO, CANDIDATO?', bname: 'JORNALISTA' },
+      { sprite: 'exmbl', name: 'Ex-MBL (Dissidente)', desc: 'Crítica aos antigos aliados que aderiram ao governismo.', bubble: 'EX-MBL TRAIDOR', bname: 'EX-MBL' },
+      { sprite: 'mc', name: 'MC Latrocínio', desc: 'Sátira sobre o crime organizado e a apologia no funk.', bubble: 'TROPA TROPA TROPA', bname: 'MC LATROCÍNIO' },
+      { sprite: 'ladrao', name: 'Ladrão de Celular', desc: 'Representação dos crimes patrimoniais urbanos.', bubble: 'PASSA O CELULAR!', bname: 'LADRÃO' },
+      { sprite: 'militante', name: 'Militante de Esquerda', desc: 'Caricatura da militância universitária que defende infratores.', bubble: 'SOLTA ELE!', bname: 'MILITANTE' },
+      { sprite: 'drone', name: 'Drone do Cury', desc: 'Sátira sobre os ataques de adversários políticos com narrativas genéricas.', bubble: 'MISÓGINO, AGRESSOR DE MULHER!', bname: 'DRONE' },
+      { sprite: 'toga', name: 'Toga do Supremo', desc: 'Representação da burocracia e das decisões judiciais monocráticas.', bubble: 'INDEFERIDO!', bname: 'TOGA' },
+      { kind: 'pulpit', name: 'LULA / FLÁVIO', desc: 'Sátira à polarização política tradicional brasileira.' },
+      { sprite: 'valete', name: 'Revista Valete', desc: 'Publicação cultural do MBL que fundamenta a batalha das ideias.', bubble: 'IDÉIAS PARA DEBATER!', bname: 'VALETE' },
+      { sprite: 'espadim', name: 'Espadim de Tiradentes', desc: 'Símbolo histórico da liberdade e dever cívico.', bubble: 'ONE-SHOT ESPADIM!', bname: 'ESPADIM' },
+      { sprite: 'livro', name: 'O Livro Amarelo', desc: 'Documento programático e plano de diretrizes da Missão.', bubble: 'X3 VOTOS ATIVO!', bname: 'LIVRO' },
+      { sprite: 'classica', name: 'Bandeira Clássica e Imperial', desc: 'Brasões representativos dos ideais e do futuro do movimento.', bubble: 'COMBO + VOTOS!', bname: 'BANDEIRAS' }
+    ];
+
+    // Glossário em DOM puro: sem canvas/ctx — usa sprites já processados ou emoji de fallback
+    function buildGlossaryCards() {
+      const track = document.getElementById('glossary-track');
+      if (!track || track.children.length > 0) return;
+
+      const fallbackEmojis = {
+        run1: '🏃', onca: '🐆', jornalista: '📢', exmbl: '👶', mc: '🎤',
+        ladrao: '📱', militante: '🚩', drone: '🚁', toga: '⚖️',
+        valete: '🃏', espadim: '⚔️', livro: '📕', classica: '🏳️'
+      };
+
+      GLOSSARY_ENTRIES.forEach((entry) => {
+        const card = document.createElement('div');
+        card.className = 'glossary-card';
+
+        const area = document.createElement('div');
+        area.className = 'glossary-sprite-area';
+
+        let hasSprite = false;
+        if (entry.sprite) {
+          const spr = loadedSprites[entry.sprite];
+          if (spr && spr.width && typeof spr.toDataURL === 'function') {
+            try {
+              const img = document.createElement('img');
+              img.src = spr.toDataURL('image/png');
+              img.alt = entry.name;
+              area.appendChild(img);
+              hasSprite = true;
+            } catch (e) { /* canvas tainted/falha -> usa emoji */ }
+          }
+        }
+        if (!hasSprite) {
+          const emojiSpan = document.createElement('span');
+          emojiSpan.className = 'glossary-emoji';
+          emojiSpan.textContent = entry.sprite ? (fallbackEmojis[entry.sprite] || '🎭') : '🏛️';
+          area.appendChild(emojiSpan);
+        }
+
+        card.appendChild(area);
+
+        const info = document.createElement('div');
+        info.className = 'glossary-info';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'glossary-name';
+        nameEl.textContent = entry.name;
+        const descEl = document.createElement('div');
+        descEl.className = 'glossary-desc';
+        descEl.textContent = entry.desc;
+        info.appendChild(nameEl);
+        info.appendChild(descEl);
+        card.appendChild(info);
+
+        track.appendChild(card);
+      });
+    }
+
+    function openGlossary() {
+      if (glossaryModal) glossaryModal.classList.remove('hidden');
+      buildGlossaryCards();
+    }
+
+    function closeGlossary() {
+      if (glossaryModal) glossaryModal.classList.add('hidden');
+    }
+
+    if (btnGlossary) {
+      btnGlossary.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openGlossary();
+      });
+    }
+    if (glossaryClose) {
+      glossaryClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeGlossary();
+      });
+    }
+    if (glossaryModal) {
+      glossaryModal.addEventListener('click', (e) => {
+        if (e.target === glossaryModal) closeGlossary();
+      });
+    }
 
     // --- RESPONSIVIDADE CANVAS (Ajuste nítido com DevicePixelRatio) ---
     function resizeCanvas() {
@@ -3328,6 +3826,11 @@
     window.addEventListener('orientationchange', () => {
       setTimeout(resizeCanvas, 150);
     });
+
+    // Mute persistido no localStorage + resume do AudioContext no primeiro gesto
+    audio.enabled = localStorage.getItem('renan_mission_muted') !== '1';
+    syncSoundUi();
+    window.addEventListener('pointerdown', () => audio.init(), { once: true });
 
     // Iniciação
     resizeCanvas();

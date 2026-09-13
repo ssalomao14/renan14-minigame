@@ -3,7 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Minigame hipercasual da campanha: ajude o Renan a conquistar votos, prender bandidos e desviar da Toga na Corrida do Livro Amarelo!">
+  <meta name="theme-color" content="#0a1426">
   <title>Renan em Missão: Corrida do Livro Amarelo</title>
+
+  <!-- Open Graph / WhatsApp preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ssalomao14.github.io/renan14-minigame/">
+  <meta property="og:title" content="Renan em Missão: Corrida do Livro Amarelo">
+  <meta property="og:description" content="Pule, deixe a fralda no púlpito e conquiste votos no debate! Minigame da campanha eleitoral 2026.">
+  <meta property="og:image" content="https://ssalomao14.github.io/renan14-minigame/assets/capa-renan.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Icones institucionais (Broche R14) -->
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   
   <!-- Basecoat CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@1.0.2/dist/basecoat.cdn.min.css">
@@ -24,14 +38,17 @@
     <!-- In-Game HUD Expandido com Patente, Algemas e Multiplicador -->
     <div id="hud">
       <div class="hud-top-row">
-        <div class="hud-chip">
+        <div class="hud-chip votes">
           <span class="hud-label">Votos</span>
           <span class="hud-value" id="hud-votes">0</span>
         </div>
-        <div class="hud-chip">
-          <span class="hud-label">Pts</span>
-          <span class="hud-value" id="hud-score">0</span>
+        <div class="hud-chip compact time">
+          <span class="hud-label">⏱</span>
+          <span class="hud-value" id="hud-time">0:00</span>
         </div>
+      </div>
+
+      <div class="hud-top-row">
         <div class="hud-chip compact">
           <span class="hud-label">Algemas</span>
           <span class="hud-value" id="hud-handcuffs">0</span>
@@ -49,6 +66,15 @@
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <line x1="23" y1="9" x2="17" y2="15"></line>
             <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+        <button class="hud-btn" id="pause-btn" aria-label="Pausar/Continuar">
+          <svg id="pause-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="5" width="4" height="14" rx="1"></rect>
+            <rect x="14" y="5" width="4" height="14" rx="1"></rect>
+          </svg>
+          <svg id="play-icon" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="7 4 20 12 7 20 7 4"></polygon>
           </svg>
         </button>
       </div>
@@ -109,8 +135,7 @@
     <!-- Game Over Screen Overlay -->
     <div class="game-overlay hidden" id="overlay-gameover">
       <div style="margin-top:10px;">
-        <div class="start-badge" style="border-color:#ff5e5e; color:#ff7676; background:rgba(255,94,94,0.15)">DEBATE ENCERRADO</div>
-        <h2 id="go-time-label" style="font-size:1.6rem; margin:8px 0 0; color:#fff; font-weight:900;">Sobreviveu por 0.0s</h2>
+        <h2 id="go-time-label" style="font-size:1.6rem; margin:0; color:#fff; font-weight:900;">Sobreviveu por 0.0s</h2>
       </div>
 
       <div class="gameover-card">
@@ -122,7 +147,7 @@
         <div class="stats-grid">
           <div class="stat-item">
             <div class="stat-val" id="go-score">0</div>
-            <div class="stat-lbl">Pontos</div>
+            <div class="stat-lbl">Algemas</div>
           </div>
           <div class="stat-item">
             <div class="stat-val" id="go-votes">0</div>
@@ -134,13 +159,24 @@
           </div>
           <div class="stat-item">
             <div class="stat-val" id="go-record">0</div>
-            <div class="stat-lbl">Recorde Pessoal</div>
+            <div class="stat-lbl">Recorde em Votos</div>
           </div>
         </div>
         <div class="new-record-badge" id="go-new-record">★ NOVO RECORDE! ★</div>
-        <div style="font-size:0.75rem; color:#8da4c4; text-align:center;">
-          "Candidato fujão ganha fralda e vira voto!"
+        <div id="go-conv-note" style="display:none; font-size:0.78rem; color:#ffd400; text-align:center; margin:6px 0 4px;"></div>
+      </div>
+
+      <!-- Ranking Comunitário da Missão -->
+      <div class="leaderboard-card">
+        <div class="leaderboard-head">🏆 RANKING DA COMUNIDADE</div>
+        <div class="leaderboard-list" id="lb-list">
+          <div class="lb-empty">Carregando ranking…</div>
         </div>
+        <div class="leaderboard-register">
+          <input type="text" id="lb-nick" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Seu nickname (opcional)">
+          <button class="lb-submit" id="lb-submit">REGISTRAR RESULTADO</button>
+        </div>
+        <div class="leaderboard-note" id="lb-note"></div>
       </div>
 
       <div class="actions-stack">
@@ -163,23 +199,60 @@
           COMPARTILHAR
         </button>
 
-        <button class="btn-secondary-action" id="btn-save-image" style="background: rgba(255, 212, 0, 0.12); border-color: rgba(255, 212, 0, 0.35); color: #ffd400;">
+        <button class="btn-secondary-action" id="btn-glossary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
-          Baixar Card de Recorde (PNG)
+          DOSSIÊ DOS RIVAIS
         </button>
 
         <a href="#" class="official-link" onclick="event.preventDefault(); alert('Apoie pelos canais oficiais: Missão do Livro Amarelo.');">
           APOIE PELOS CANAIS OFICIAIS
         </a>
       </div>
+
+      <!-- Menu de Compartilhamento (X, WhatsApp, Facebook, Instagram) -->
+      <div class="share-menu hidden" id="share-menu">
+        <div class="share-menu-title">COMPARTILHAR RESULTADO</div>
+        <div class="share-menu-row">
+          <button class="share-net" data-net="twitter" aria-label="Compartilhar no X">
+            <span class="share-glyph" style="background:#000;">𝕏</span>
+            <span class="share-label">X</span>
+          </button>
+          <button class="share-net" data-net="whatsapp" aria-label="Compartilhar no WhatsApp">
+            <span class="share-glyph" style="background:#25D366;">✆</span>
+            <span class="share-label">WhatsApp</span>
+          </button>
+          <button class="share-net" data-net="facebook" aria-label="Compartilhar no Facebook">
+            <span class="share-glyph" style="background:#1877F2;">f</span>
+            <span class="share-label">Facebook</span>
+          </button>
+          <button class="share-net" data-net="instagram" aria-label="Compartilhar no Instagram">
+            <span class="share-glyph" style="background:linear-gradient(45deg,#f58529,#dd2a7b,#8134af);">◉</span>
+            <span class="share-label">Instagram</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="gameover-author">Criado por <a href="https://github.com/ssalomao14" id="author-link" target="_blank" rel="noopener">Samuel Salomão (@ssalomao14)</a></div>
     </div>
 
     <!-- Notification Toast for Copy -->
     <div class="share-toast" id="share-toast">Copiado para a área de transferência!</div>
+
+    <!-- Glossário da Lore (Modal) -->
+    <div class="modal-backdrop hidden" id="glossary-modal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 class="modal-title">Dossiê dos Rivais</h3>
+          <button class="modal-close" id="glossary-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="glossary-hint">↓ role para baixo para ver todos ↓</div>
+        <div class="glossary-track" id="glossary-track"></div>
+        <div class="modal-foot">Pontuação lúdica, sem premiação. Votos alimentam o ranking da comunidade.</div>
+      </div>
+    </div>
   </div>
 
   <script src="game.js"></script>
