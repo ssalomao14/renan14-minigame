@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.4';
+    const GAME_VERSION = '0.1.5';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -3573,10 +3573,8 @@
       resetWorld();
       overlayStart.classList.add('hidden');
       overlayGameOver.classList.add('hidden');
-      // Sessão nova: libera registro no ranking e fecha menu de share
+      // Sessão nova: libera registro no ranking
       lbSubmittedThisRun = false;
-      const shareMenuEl = document.getElementById('share-menu');
-      if (shareMenuEl) shareMenuEl.classList.add('hidden');
       const lbSubmitBtn = document.getElementById('lb-submit');
       if (lbSubmitBtn) lbSubmitBtn.disabled = false;
     }
@@ -3647,9 +3645,7 @@
         }
       }
 
-      // Prepara o ranking comunitário (esconde menu de share e carrega a lista)
-      const shareMenuEl = document.getElementById('share-menu');
-      if (shareMenuEl) shareMenuEl.classList.add('hidden');
+      // Prepara o ranking comunitário (carrega a lista)
       const lbSubmitBtn = document.getElementById('lb-submit');
       if (lbSubmitBtn) lbSubmitBtn.disabled = false;
       refreshLeaderboard();
@@ -3693,83 +3689,31 @@
       return { text, url: shareUrl, full: `${text}\n${shareUrl}` };
     }
 
+    // Botão USAR COMPARTILHAR: abre o menu nativo do dispositivo (mobile).
+    // No desktop (sem Web Share de verdade) copia o texto e mostra um banner.
+    function isMobileUA() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent)
+        && (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0);
+    }
+
+    function copyShareToClipboard(full) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(full).catch(() => {}); // clipboard pode exigir permissão
+      }
+      showShareToast('Texto e link copiados para compartilhamento');
+    }
+
     btnShare.addEventListener('click', (e) => {
       e.stopPropagation();
-      const menu = document.getElementById('share-menu');
-      if (!menu) return;
-      const willShow = menu.classList.contains('hidden');
-      menu.classList.toggle('hidden');
-      if (willShow) {
-        menu.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        const nickEl = document.getElementById('lb-nick');
-        if (nickEl) nickEl.blur();
+      const { url, full } = buildSharePayload();
+      if (navigator.share && isMobileUA()) {
+        navigator.share({ text: full, url })
+          .catch((err) => {
+            if (!err || err.name !== 'AbortError') copyShareToClipboard(full);
+          });
+      } else {
+        copyShareToClipboard(full);
       }
-    });
-
-    document.querySelectorAll('.share-net').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const { text, url, full } = buildSharePayload();
-        const net = btn.dataset.net;
-        const menu = document.getElementById('share-menu');
-
-        function isMobileUA() {
-          return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent)
-            && (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0);
-        }
-
-        // Nativo (Web Share API) só em celular/tablet de verdade.
-        // No desktop o navigator.share abre a janelinha de compartilhamento do Windows
-        // (ex.: Instagram) — que NÃO é o comportamento desejado. Usa fallback: copia + abre o site.
-        function doAppSharedShare(full, dstUrl, toastMsg, extra) {
-          const doFallback = () => {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(full).catch(() => {}); // clipboard pode exigir permissão
-            }
-            window.open(dstUrl, '_blank');
-            showShareToast(toastMsg);
-          };
-          if (navigator.share && isMobileUA()) {
-            // No Android/iOS o app recebe texto (e link) juntos direto na rede social
-            navigator.share(Object.assign({ text: full }, extra && extra.url ? { url: extra.url } : {}))
-              .catch((err) => {
-                if (!err || err.name !== 'AbortError') doFallback();
-              });
-          } else {
-            doFallback();
-          }
-        }
-
-        if (net === 'twitter') {
-          window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(full)}`, '_blank');
-        } else if (net === 'whatsapp') {
-          window.open(`https://wa.me/?text=${encodeURIComponent(full)}`, '_blank');
-        } else if (net === 'facebook') {
-          if (navigator.share && isMobileUA()) {
-            // No celular o app do Facebook recebe texto+link juntos (dialogs do share.php ignoram o texto)
-            navigator.share({ text: full, url })
-              .catch(() => {
-                window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank');
-              });
-          } else {
-            // Desktop: sharer.php do Facebook IGNORA o parâmetro quote (post zera).
-            // Copia o texto e abre o compartilhador com a URL — basta colar no campo.
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(full).catch(() => {});
-            }
-            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank');
-            showShareToast('Texto copiado! Cole no campo "Escreva algo..." do Facebook.');
-          }
-        } else if (net === 'instagram') {
-          doAppSharedShare(full, 'https://www.instagram.com/', 'Texto e link copiados! Cole na legenda do Instagram.', { url });
-        } else if (net === 'tiktok') {
-          doAppSharedShare(full, 'https://www.tiktok.com/', 'Texto e link copiados! Cole na legenda do TikTok.', { url });
-        } else if (net === 'kwai') {
-          doAppSharedShare(full, 'https://www.kwai.com/', 'Texto e link copiados! Cole na legenda do Kwai.', { url });
-        }
-
-        if (menu) menu.classList.add('hidden');
-      });
     });
 
     // --- RANKING COMUNITÁRIO ---

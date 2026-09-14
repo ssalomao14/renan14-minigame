@@ -721,6 +721,154 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       font-weight: 700;
     }
 
+    .gameover-disclaimer {
+      margin-top: 6px;
+      font-size: 0.68rem;
+    }
+
+    /* --- TELA FINAL COMPACTA: TUDO CABE EM 1 TELA (sem rolagem de página) --- */
+    #overlay-gameover {
+      padding: 10px 14px 14px;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    #overlay-gameover h2#go-time-label {
+      margin-top: 0;
+      font-size: 1.25rem;
+    }
+    #overlay-gameover .gameover-card {
+      padding: 12px 14px;
+    }
+    #overlay-gameover .rank-highlight-box {
+      padding: 7px 12px;
+      margin-bottom: 8px;
+    }
+    #overlay-gameover .rank-title {
+      font-size: 1rem;
+    }
+    #overlay-gameover .rank-title.gold-tier {
+      font-size: 1.12rem;
+    }
+    #overlay-gameover .stats-grid {
+      gap: 6px;
+      margin: 6px 0 8px;
+    }
+    #overlay-gameover .stat-item {
+      padding: 6px;
+      border-radius: 8px;
+    }
+    #overlay-gameover .stat-val {
+      font-size: 1.1rem;
+    }
+    #overlay-gameover .stat-lbl {
+      font-size: 0.6rem;
+      margin-top: 2px;
+    }
+    #overlay-gameover .new-record-badge {
+      font-size: 0.9rem;
+      padding: 5px 8px;
+      margin: 0 0 8px;
+    }
+    #overlay-gameover #go-conv-note {
+      margin: 4px 0 2px;
+      font-size: 0.72rem;
+    }
+    #overlay-gameover .leaderboard-card {
+      padding: 6px 8px 8px;
+      margin-bottom: 6px;
+    }
+    #overlay-gameover .leaderboard-head {
+      font-size: 0.72rem;
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+    }
+    #overlay-gameover .leaderboard-list {
+      max-height: 88px;
+      gap: 2px;
+    }
+    #overlay-gameover .lb-row {
+      padding: 3px 6px;
+      font-size: 0.72rem;
+      gap: 6px;
+    }
+    #overlay-gameover .lb-medal {
+      font-size: 0.85rem;
+      width: 20px;
+    }
+    #overlay-gameover .lb-pos {
+      width: 20px;
+    }
+    #overlay-gameover .leaderboard-register {
+      margin-top: 6px;
+    }
+    #overlay-gameover #lb-nick {
+      padding: 6px 8px;
+      font-size: 0.78rem;
+    }
+    #overlay-gameover .lb-submit {
+      padding: 0 10px;
+      font-size: 0.7rem;
+    }
+    #overlay-gameover .leaderboard-note {
+      margin-top: 4px;
+      font-size: 0.64rem;
+    }
+    #overlay-gameover .actions-stack {
+      gap: 6px;
+    }
+    #overlay-gameover .btn-secondary-action {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+    }
+    #overlay-gameover .btn-play-large {
+      padding: 13px 20px;
+      font-size: 1.1rem;
+    }
+    #overlay-gameover .official-link {
+      margin-top: 4px;
+      font-size: 0.68rem;
+    }
+    #overlay-gameover .gameover-author {
+      margin-top: 6px;
+      font-size: 0.66rem;
+    }
+    #overlay-gameover .gameover-disclaimer {
+      margin-top: 3px;
+      font-size: 0.64rem;
+    }
+
+    /* Telas muito baixas (celulares antigos/landscape): encolhe mais ainda */
+    @media (max-height: 680px) {
+      #overlay-gameover {
+        padding: 6px 12px 10px;
+        gap: 5px;
+      }
+      #overlay-gameover .gameover-card {
+        padding: 8px 12px;
+      }
+      #overlay-gameover .stats-grid {
+        gap: 4px;
+        margin: 4px 0 6px;
+      }
+      #overlay-gameover .stat-item {
+        padding: 4px;
+      }
+      #overlay-gameover .leaderboard-list {
+        max-height: 66px;
+      }
+      #overlay-gameover .actions-stack {
+        gap: 4px;
+      }
+      #overlay-gameover .btn-secondary-action {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+      }
+      #overlay-gameover .btn-play-large {
+        padding: 10px 18px;
+        font-size: 1rem;
+      }
+    }
+
     /* Glossário da Lore (Modal) */
     .modal-backdrop {
       position: absolute;
@@ -1031,72 +1179,5 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       color: #7d94bd;
     }
 
-    /* --- MENU DE COMPARTILHAMENTO (X, WhatsApp, Facebook, Instagram) --- */
-    .share-menu {
-      width: 100%;
-      max-width: 330px;
-      margin: 0 auto 10px;
-      background: rgba(11, 21, 40, 0.97);
-      border: 1px solid rgba(255, 212, 0, 0.45);
-      border-radius: 14px;
-      padding: 10px 12px 12px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-      animation: modal-pop 0.18s ease-out;
-    }
-
-    .share-menu-title {
-      text-align: center;
-      color: #ffd400;
-      font-size: 0.78rem;
-      font-weight: 900;
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-    }
-
-    .share-menu-row {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .share-net {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 12px;
-      padding: 8px 10px 6px;
-      cursor: pointer;
-      min-width: 62px;
-    }
-
-    .share-net:hover {
-      transform: translateY(-2px);
-      border-color: rgba(255, 212, 0, 0.6);
-    }
-
-    .share-glyph {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: 900;
-      font-size: 1.1rem;
-      line-height: 1;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
-    }
-
-    .share-label {
-      color: #c6d3ea;
-      font-size: 0.62rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-    }
+    /* --- COMPARTILHAMENTO: menu de plataformas removido (botão único usa menu nativo do dispositivo) --- */
   
