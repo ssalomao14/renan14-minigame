@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="Minigame hipercasual da campanha: ajude o Renan a conquistar votos, prender bandidos e desviar da Toga na Corrida do Livro Amarelo!">
+  <meta name="description" content="Minigame hipercasual da campanha: pule, deixe a fralda no púlpito e conquiste votos com o Renan. pra cima deles, Renan!">
   <meta name="theme-color" content="#0a1426">
-  <title>Renan em Missão: Corrida do Livro Amarelo</title>
+  <title>pra cima deles, renan!</title>
 
   <!-- Open Graph / WhatsApp preview -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ssalomao14.github.io/renan14-minigame/">
-  <meta property="og:title" content="Renan em Missão: Corrida do Livro Amarelo">
-  <meta property="og:description" content="Pule, deixe a fralda no púlpito e conquiste votos no debate! Minigame da campanha eleitoral 2026.">
+  <meta property="og:title" content="pra cima deles, renan!">
+  <meta property="og:description" content="Pule, deixe a fralda no púlpito e conquiste votos no debate! Minigame da campanha 2026. #PraCimaDelesRenan">
   <meta property="og:image" content="https://ssalomao14.github.io/renan14-minigame/assets/share-cover.png">
   <meta property="og:image:width" content="1024">
   <meta property="og:image:height" content="1024">
-  <meta property="og:image:alt" content="Renan em Missão: Corrida do Livro Amarelo — R14">
+  <meta property="og:image:alt" content="pra cima deles, renan! — R14">
   <meta name="twitter:card" content="summary_large_image">
 
   <!-- Icones institucionais (Broche R14) -->
@@ -60,17 +60,6 @@
           <span class="hud-label">Vidas</span>
           <span class="hud-value" id="hud-lives">❤❤❤</span>
         </div>
-        <button class="hud-btn" id="sound-btn" aria-label="Som">
-          <svg id="sound-icon-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-          </svg>
-          <svg id="sound-icon-off" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <line x1="23" y1="9" x2="17" y2="15"></line>
-            <line x1="17" y1="9" x2="23" y2="15"></line>
-          </svg>
-        </button>
         <button class="hud-btn" id="pause-btn" aria-label="Pausar/Continuar">
           <svg id="pause-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <rect x="6" y="5" width="4" height="14" rx="1"></rect>
@@ -83,13 +72,15 @@
       </div>
 
       <div class="hud-status-row">
-        <div class="hud-chip compact" style="border-color: rgba(255,255,255,0.25);">
+        <div class="hud-chip compact rank-chip" style="border-color: rgba(255,255,255,0.25); position:relative; overflow:hidden;">
           <span class="hud-label" style="color:#ffd400;">Patente:</span>
           <span class="hud-value" id="hud-rank" style="font-size:0.72rem; color:#fff;">Recruta</span>
+          <div class="rank-progress" id="hud-rank-track"><div class="rank-progress-fill" id="hud-rank-fill"></div></div>
         </div>
         <div class="hud-badge mult" id="hud-mult" style="display:none;">x1</div>
         <div class="hud-badge perk" id="hud-perk-active" style="display:none;">INVENCÍVEL</div>
         <div class="hud-badge squad" id="hud-squad" style="display:none;">PRESOS: 0/3</div>
+        <div class="hud-badge haunt" id="hud-haunt" style="display:none;">👻 3s</div>
       </div>
     </div>
 
@@ -100,9 +91,8 @@
     <!-- Start Screen Overlay -->
     <div class="game-overlay" id="overlay-start">
       <div>
-        <div class="start-badge">Missão Oficial</div>
-        <h1 class="start-title">RENAN EM<br><span>MISSÃO</span></h1>
-        <p class="start-tagline">Pule, deixe a fralda no púlpito e conquiste votos no debate!</p>
+        <h1 class="start-title new-brand">pra cima deles,<br><span>renan!</span></h1>
+        <div class="start-hashtag">#PraCimaDelesRenan</div>
       </div>
 
       <!-- Arte Conceitual Oficial com Glow Dourado Imperial -->
@@ -110,10 +100,10 @@
         <div class="start-art-glow"></div>
         <img class="start-art-img" 
              src="./assets/capa-renan.png" 
-             alt="Renan em Missão — Arte Conceitual Oficial"
+             alt="pra cima deles, renan! — Arte Conceitual Oficial"
              onerror="this.style.display='none'; const fb = document.getElementById('start-art-fallback'); if(fb) fb.style.display='flex';">
         <div id="start-art-fallback" style="display:none; position:relative; z-index:2; height:180px; width:100%; border:1.5px solid rgba(255,212,0,0.4); border-radius:14px; background:#0b1528; align-items:center; justify-content:center; flex-direction:column; padding:16px;">
-          <div style="color:#ffd400; font-size:1.4rem; font-weight:900; letter-spacing:1px;">RENAN EM MISSÃO</div>
+          <div style="color:#ffd400; font-size:1.4rem; font-weight:900; letter-spacing:1px;">pra cima deles,<br>renan!</div>
           <div style="color:#9ab0d3; font-size:0.85rem; margin-top:6px;">Debate Sem Fujões</div>
         </div>
       </div>
@@ -132,7 +122,7 @@
         </label>
         <div class="error-notice" id="error-notice"></div>
         <div class="start-footer-links">
-          <a href="#" class="start-footer-link" onclick="event.preventDefault(); alert('Missão Oficial: jogo satírico de plataforma com patente e recordes.');">Sobre</a>
+          <a href="#" class="start-footer-link" onclick="event.preventDefault(); alert('pra cima deles, renan!: jogo satírico de plataforma com patente e recordes.');">Sobre</a>
           <span style="color:#3c5378; font-size:0.7rem;">•</span>
           <a href="#" class="start-footer-link" onclick="event.preventDefault(); alert('Privacidade: Nenhum dado pessoal é coletado. Recordes salvos apenas no navegador local.');">Privacidade</a>
         </div>
@@ -215,6 +205,8 @@
           DOSSIÊ DE CAMPANHA
         </button>
 
+        <button class="btn-home" id="btn-home" type="button">← INÍCIO</button>
+
         <a href="#" class="official-link" onclick="event.preventDefault(); alert('Apoie pelos canais oficiais: Missão do Livro Amarelo.');">
           APOIE PELOS CANAIS OFICIAIS
         </a>
@@ -242,6 +234,17 @@
         <div class="modal-foot">Pontuação lúdica, sem premiação. Votos alimentam o ranking da comunidade.</div>
       </div>
     </div>
+
+    <!-- Botão de som GLOBAL: fixo no topo-direita, visível em qualquer tela.
+         Amarelo com megafone padrão; com classe .muted mostra um risco em cima. -->
+    <button class="sound-toggle-btn" id="sound-toggle" aria-label="Som" type="button">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M3 9v6h4l5 5V4L7 9H3z"></path>
+        <path d="M16.5 11a4 4 0 0 0-2-3.46v6.92c.55-1 1-2 1.3-3.46l.7 0z"></path>
+        <path d="M18.6 8.4a7 7 0 0 1 0 7.2l1.5.9a8.8 8.8 0 0 0 0-9l-1.5.9z"></path>
+      </svg>
+      <span class="sound-toggle-slash" aria-hidden="true"></span>
+    </button>
   </div>
 
   <script src="game.js"></script>

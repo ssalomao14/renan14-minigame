@@ -1,11 +1,11 @@
 
     /**
-     * RENAN EM MISSÃO — PROTÓTIPO PLATAFORMA
+     * PRA CIMA DELES, RENAN! — PROTÓTIPO PLATAFORMA
      * Loop Core: Corrida contínua, pulo variável, fast-fall e colocação de fraldas em púlpitos vazios.
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.5';
+    const GAME_VERSION = '0.1.6';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -144,9 +144,296 @@
           osc.stop(t + 0.25);
         });
       }
+
+      // Pop de coleta: sobe 1 semitom a cada 3 coletas seguidas (reinicia após 1.5 s sem coletar)
+      playCollect(step = 0) {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const semis = Math.min(8, Math.floor(step / 3));
+        const f = 620 * Math.pow(2, semis / 12);
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, now);
+        osc.frequency.exponentialRampToValueAtTime(f * 1.5, now + 0.08);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      // Thud de aterrissagem no chão (surdo e curto)
+      playLand() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(130, now);
+        osc.frequency.exponentialRampToValueAtTime(55, now + 0.08);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      // Sting curta do clique em JOGAR (ataque imediato, transitions to game music)
+      playStartSting() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [440, 880].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          const t = now + i * 0.07;
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.linearRampToValueAtTime(0.01, t + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.12);
+        });
+      }
+
+      // Clique de UI (botões de tela: compartilhar, registrar, glossário, pause)
+      playClick() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(1000, now);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.03);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.03);
+      }
+
+      // Vinheta de promoção de patente: riser curto + arpejo de vitória
+      playRankUp() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Riser (varredura ascendente)
+        const sweep = this.ctx.createOscillator();
+        const sweepGain = this.ctx.createGain();
+        sweep.type = 'sawtooth';
+        sweep.frequency.setValueAtTime(200, now);
+        sweep.frequency.exponentialRampToValueAtTime(1200, now + 0.35);
+        sweepGain.gain.setValueAtTime(0.08, now);
+        sweepGain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+        sweep.connect(sweepGain);
+        sweepGain.connect(this.ctx.destination);
+        sweep.start(now);
+        sweep.stop(now + 0.35);
+        // Acorde de vitória
+        [523, 659, 784, 1046].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          const t = now + 0.18 + i * 0.07;
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.18, t);
+          gain.gain.linearRampToValueAtTime(0.01, t + 0.35);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.35);
+        });
+      }
+
+      // Sting de encerramento: descendente, fecha a partida
+      playGameOverSting() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [392, 311, 262, 196].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          const t = now + i * 0.16;
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.22, t);
+          gain.gain.linearRampToValueAtTime(0.01, t + 0.22);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.22);
+        });
+      }
+
+      // Whoosh curto do Espectro ao ficar sólido (adverte o jogador)
+      playGhostWarn() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(640, now + 0.2);
+        gain.gain.setValueAtTime(0.07, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+    }
+
+    // --- ÁUDIO REAL (arquivos mp3 em assets/audio/) ---
+    // Música de fundo + trechos de voz por inimigo + voz do Renan na tela inicial.
+    // Tudo opcional: se o arquivo não existir (404) o jogo segue só com os efeitos
+    // sintéticos do SoundEngine. Formato padrão: .mp3 (universal, inclusive iOS).
+    // Crossfade entre músicas via Web Audio (buffer loop) — nada de <audio> solto,
+    // que no iOS exigiria gesto por elemento.
+    class MusicEngine {
+      constructor() {
+        this.enabled = true;
+        this.unlocked = false;
+        this.ctx = null;
+        this.bgmKind = null;
+        this._bufs = {};      // buffers decodificados em cache (null = falhou/404)
+        this._pending = {};   // chaves carregando (lista de callbacks)
+        this._bgmNode = null;
+        this._bgmGain = null;
+      }
+
+      _ensureCtx() {
+        if (this.ctx) return true;
+        if (audio && audio.ctx) { this.ctx = audio.ctx; return true; } // compartilha o ctx do SoundEngine
+        return false;
+      }
+
+      _loadBuf(key, cb) {
+        if (key in this._bufs) { cb(this._bufs[key]); return; }
+        if (this._pending[key]) { this._pending[key].push(cb); return; }
+        this._pending[key] = [cb];
+        const req = new XMLHttpRequest();
+        req.open('GET', `assets/audio/${key}.mp3`, true);
+        req.responseType = 'arraybuffer';
+        req.onload = () => {
+          if (req.status !== 200) { this._bufs[key] = null; this._flush(key, null); return; }
+          try {
+            // callback-form: funciona em todos os browsers (incl. iOS)
+            this.ctx.decodeAudioData(req.response, (d) => {
+              this._bufs[key] = d; this._flush(key, d);
+            }, () => { this._bufs[key] = null; this._flush(key, null); });
+          } catch (err) { this._bufs[key] = null; this._flush(key, null); }
+        };
+        req.onerror = () => { this._bufs[key] = null; this._flush(key, null); };
+        req.send();
+      }
+
+      _flush(key, d) {
+        const list = this._pending[key] || [];
+        this._pending[key] = null;
+        list.forEach((cb) => cb(d));
+      }
+
+      // Deve ser chamado DENTRO de um gesto do usuário (desbloqueia autoplay)
+      unlock() {
+        if (this.unlocked) return;
+        this.unlocked = true;
+        if (this._ensureCtx() && this.ctx.state === 'suspended') this.ctx.resume();
+      }
+
+      // kind: 'start' (toca UMA vez) | 'game'/'imperial' (loop) | null (para a música com fade)
+      setBgm(kind) {
+        const prevNode = this._bgmNode;
+        const prevGain = this._bgmGain;
+        // Nada a fazer: já está nesse kind COM nó ativo, ou já está todo parado
+        const alreadyPlaying = (kind !== null && kind === this.bgmKind && prevNode !== null);
+        const alreadyStopped = (kind === null && this.bgmKind === null && prevNode === null);
+        if (alreadyPlaying || alreadyStopped) return;
+
+        this.bgmKind = kind;
+        this._bgmNode = null;
+        this._bgmGain = null;
+
+        if (!this.enabled || !this.unlocked || !kind || !this._ensureCtx()) {
+          // Mutado, bloqueado ou parando: elimina a faixa atual imediatamente
+          if (prevNode && prevGain && this.ctx) {
+            try { prevGain.gain.cancelScheduledValues(this.ctx.currentTime); } catch (err) {}
+            try { prevNode.stop(); } catch (err) {}
+          }
+          return;
+        }
+
+        this._loadBuf(kind, (d) => {
+          if (!d || !this.ctx || this.bgmKind !== kind) return; // mudou de ideia no meio
+          const now = this.ctx.currentTime;
+          const src = this.ctx.createBufferSource();
+          const g = this.ctx.createGain();
+          src.buffer = d;
+          src.loop = kind !== 'start'; // introdução da tela inicial toca uma única vez
+          // Níveis por trilha: game/imperial ficam em background, intro um pouco à frente
+          const level = (kind === 'start') ? 0.38 : 0.26;
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.exponentialRampToValueAtTime(level, now + 0.9);
+          if (!src.loop) {
+            // Fade-out no final da introdução (evita corte seco)
+            const end = d.duration || 30;
+            g.gain.setValueAtTime(level, now + Math.max(1.2, end - 1.0));
+            g.gain.exponentialRampToValueAtTime(0.0001, now + end + 0.02);
+            src.onended = () => {
+              try { g.disconnect(); } catch (err) {}
+              if (this._bgmNode === src) { this._bgmNode = null; this._bgmGain = null; }
+            };
+          }
+          src.connect(g);
+          g.connect(this.ctx.destination);
+          src.start();
+          this._bgmNode = src;
+          this._bgmGain = g;
+
+          // Fade-out da música anterior em crossfade
+          if (prevNode && prevGain) {
+            try {
+              prevGain.gain.cancelScheduledValues(now);
+              prevGain.gain.setValueAtTime(Math.max(prevGain.gain.value, 0.0001), now);
+              prevGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+              prevNode.stop(now + 1.0);
+            } catch (err) {}
+          }
+        });
+      }
+
+      // Pré-carrega/decodifica o buffer ANTES do gesto, para o primeiro play ser imediato
+      prewarm(kind) {
+        try {
+          if (!this.ctx) { if (audio && audio.init) audio.init(); this._ensureCtx(); }
+          if (this.ctx) this._loadBuf(kind, () => {});
+        } catch (err) { /* autoplay/decodificação falham silenciosamente */ }
+      }
+
+      // One-shot de voz/trecho real (buffer source, sem limite por elemento)
+      playOne(key, vol) {
+        if (!this.enabled || !this.unlocked || !this._ensureCtx()) return;
+        this._loadBuf(key, (d) => {
+          if (!d || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const dur = d.duration || 1;
+          const src = this.ctx.createBufferSource();
+          const g = this.ctx.createGain();
+          src.buffer = d;
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(vol || 0.9, now + 0.02);
+          g.gain.setValueAtTime(vol || 0.9, now + Math.max(0.03, dur - 0.05));
+          g.gain.exponentialRampToValueAtTime(0.0001, now + dur + 0.02);
+          src.connect(g);
+          g.connect(this.ctx.destination);
+          src.start(now);
+        });
+      }
     }
 
     const audio = new SoundEngine();
+    const realAudio = new MusicEngine();
 
     // Feedback tátil (mobile modernos). Falha silenciosamente em desktop/navegador sem suporte.
     function buzz(pattern) {
@@ -162,6 +449,26 @@
     // --- GAME ENGINE & CONFIG ---
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
+
+    // Prévia de pixelização global (mode de preview — NÃO afeta o jogo normal):
+    // acesse a página com ?pixel=1 (ou ?pixel=N para fator de pixelação custom).
+    const PIXEL_MODE = /[?&]pixel=/.test(window.location.search);
+    const PIXEL_RATIO = Math.max(2, Math.min(8, parseInt((window.location.search.match(/[?&]pixel=(\d+)/) || [])[1] || '2', 10)));
+
+    // Aparência pixelada dos elementos DOM (só na prévia ?pixel=N)
+    if (PIXEL_MODE) {
+      document.body.classList.add('pixel');
+      const st = document.createElement('style');
+      st.textContent =
+        "@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Press+Start+2P&display=swap');" +
+        // Pixeliza TODAS as fontes de texto da UI (DOM) — canvas já é pixelado pelo render de baixa resolução
+        'body.pixel, body.pixel * { font-family: "Pixelify Sans", "Press Start 2P", "Courier New", monospace !important; letter-spacing: 0 !important; }' +
+        'body.pixel img { image-rendering: pixelated; }' +
+        'body.pixel .start-title { font-size: 1.4rem; line-height: 1.35; }' +
+        'body.pixel .start-hashtag { font-size: 0.72rem; }' +
+        'body.pixel .btn-play-large { font-size: 1.1rem; padding: 10px 18px; }';
+      document.head.appendChild(st);
+    }
 
     // Resolução lógica de jogo (coordenadas virtuais fixas para física consistente)
     const V_WIDTH = 420;
@@ -180,6 +487,7 @@
     let lastFinalScore = 0;
     let lastGameTime = 0;
     let lastVotes = 0;
+    let lastRunWasNewRecord = false;
     let isPaused = false;
 
     // --- LEADERBOARD COMUNITÁRIO (backend plugável) ---
@@ -232,7 +540,7 @@
     // Câmera com aspecto uniforme (evita distorção)
     const VIEW = { scale: 1, ox: 0, oy: 0 };
     // Cache de valores do HUD para só escrever no DOM quando mudar
-    const hudCache = { votes: null, time: null, handcuffs: null, rank: null, mult: null, perk: null, squad: null, lives: null };
+    const hudCache = { votes: null, time: null, handcuffs: null, rank: null, rankPct: null, mult: null, perk: null, squad: null, lives: null, haunt: null };
 
     function mostrarBanner(texto, tipo = "info", icone = "⚠️", mode = "action") {
       activeBanner = {
@@ -271,6 +579,8 @@
       activeCard = card;
       audio.playReveal();
       buzz(20);
+      const fixtureKey = enemyFixtureKey(card.typeKey);
+      if (fixtureKey) realAudio.playOne(fixtureKey, 0.9);
     }
 
     function endIntroCard() {
@@ -281,6 +591,8 @@
         activeCard.timer = activeCard.duration;
         audio.playReveal();
         buzz(20);
+        const fixtureKey = enemyFixtureKey(activeCard.typeKey);
+        if (fixtureKey) realAudio.playOne(fixtureKey, 0.9);
         return;
       }
       activeCard = null;
@@ -438,6 +750,14 @@
       ctx.fillStyle = '#c6d3ea';
       ctx.fillText('Não mostrar apresentação novamente', boxX + boxS + 8, boxY + boxS / 2 + 0.5);
 
+      // Assinatura de marca no rodapé do card
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffd400';
+      ctx.globalAlpha = Math.max(0, alpha * 0.9);
+      ctx.font = '900 10px "Arial Black", sans-serif';
+      ctx.fillText('— pra cima deles, renan! —', cx, cy + ch / 2 - 26);
+      ctx.globalAlpha = Math.max(0, alpha);
+
       // Barra de countdown (tempo restante da introdução)
       const ratio = Math.max(0, Math.min(1, card.timer / card.duration));
       ctx.fillStyle = 'rgba(255, 212, 0, 0.18)';
@@ -466,6 +786,11 @@
     let machistaFlashTimer = 0;
     // Se >0, o flash é de ABATE do drone (MISÓGINO + votos); se 0, é o tropeço (MACHISTA -2.000)
     let machistaKillFlash = 0;
+    // Streak de coleta: pop do SoundEngine sobe de tom a cada 3 coletas seguidas (expira em 1.5s)
+    let collectStreak = 0;
+    let collectStreakTimer = 0;
+    // Assombrado pelo Espectro: 3s com pontos congelados (sem perder vida)
+    let hauntedTimer = 0;
 
     let votes = 0;
     let obstaclesCleared = 0;
@@ -484,6 +809,11 @@
     let imperialModeTimer = 0;      // Bandeira Imperial x3 + invencibilidade
     let bookInvincibleTimer = 0;    // Livro Amarelo invencibilidade
     let oncaRidingTimer = 0;        // Onça Pintada invencível + atropelamento
+    // --- EVENTO OVERDRIVE UNIFICADO (onça pintada + modo imperial) ---
+    // Onça e Imperial compartilham o MESMO evento de apresentação para o futuro
+    // (música imperial, textos, efeitos de tela e outras variações entram aqui).
+    let overdriveKind = null;             // 'onca' | 'imperial' | null
+    let overdriveHashtagUsedThisRun = false; // hashtag só 1x por run
     let hasShield = false;          // Broche R14 absorve 1 colisão
     let hasSwordStrike = false;     // Espadim de Tiradentes (one-shot próximo obstáculo)
 
@@ -491,6 +821,8 @@
     let thiefSquadActive = false;
     let thiefSquadCount = 0;
     let thiefSquadCaught = 0;
+    let squadHashtagUsedThisRun = false; // hashtag da quadrilha só 1x por run
+    let espectroForcedThisRun = false;   // aparição FORÇADA do Espectro aos 30s (1x por run)
 
     // Prisioneiros capturados (MC e Ladrões) para dinâmica da Militante
     let prisonersHeld = 0;
@@ -535,6 +867,7 @@
       militante: "./assets/Militante.png",
       drone: "./assets/Drone.png",
       toga: "./assets/Toga.png",
+      espectro: "./assets/Espectro.png",
 
       // Perks & Coletáveis
       onca: "./assets/ONCA.png",
@@ -678,8 +1011,11 @@
         // Verificação de pouso no chão
         if (this.y >= GROUND_Y - this.h) {
           this.y = GROUND_Y - this.h;
-          if (!this.isGrounded && this.isFastFalling) {
-            spawnDust(this.x + this.w / 2, GROUND_Y, 8);
+          if (!this.isGrounded) {
+            audio.playLand();
+            if (this.isFastFalling) {
+              spawnDust(this.x + this.w / 2, GROUND_Y, 8);
+            }
           }
           this.vy = 0;
           this.isGrounded = true;
@@ -1172,7 +1508,7 @@
       }
 
       if (gameState === STATE.MENU) {
-        startGame();
+        requestStartGame();
         return;
       }
       if (gameState === STATE.GAMEOVER) {
@@ -1214,6 +1550,12 @@
             togglePause();
           }
         }
+        return;
+      }
+      // Replay instantâneo na tela final: Espaço / ↑ / R (sem passar por menu)
+      if (gameState === STATE.GAMEOVER && (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyR')) {
+        e.preventDefault();
+        if (!e.repeat) startGame();
         return;
       }
       if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -2014,6 +2356,107 @@
       }
     }
 
+    // 8. ESPECTRO (fase etérea/sólida alternada a cada ~1,6s)
+    // Etéreo: translúcido (globalAlpha 0.55) e SEM colisão — Renan atravessa.
+    // Sólido: opaco, olhos vermelhos acesos 0,4s antes (telegrafe); colide -> "ASSOMBRADO!" 3s.
+    class EspectroObstacle {
+      constructor(x) {
+        this.x = x;
+        this.w = 76;
+        this.h = 88;
+        // Entra na ALTURA DE PERIGO (corpo do Renan), flutuando devagar para a esquerda
+        this.baseY = (GROUND_Y - 120) + Math.random() * 30; // topo do bicho na faixa de perigo
+        this.y = this.baseY;
+        this.zigzagAmp = 30;
+        this.phaseTime = Math.random() * 1.6; // fase inicial aleatória (não sincroniza entre spawns)
+        this.zigzag = Math.random() * 5;
+        this.speedX = 0.55;       // escapa se ignorado (mais lento que o scroll da pista)
+        this.hitInset = { x: 12, y: 10 };
+        this.cleared = false;
+        this.neutralized = false;
+        this.bubblePeriod = 2.2;
+      }
+
+      // Sem colisão enquanto etéreo OU no telegrafe (0,4s antes de ficar sólido)
+      isEthereal() {
+        return (this.phaseTime % 1.6) < 1.2;
+      }
+
+      update(dx, dt) {
+        if (this.neutralized) {
+          this.x -= dx + 120 * dt;
+          return;
+        }
+        this.phaseTime += dt;
+        this.zigzag += dt * 2.2;
+        this.x -= dx * this.speedX;
+        // Zigue-zague vertical suave dentro da faixa de perigo
+        this.y = this.baseY + Math.sin(this.zigzag) * this.zigzagAmp;
+
+        // Whoosh na virada para a fase sólida (adverte antes da colisão)
+        const pNow = this.phaseTime % 1.6;
+        const pPrev = (this.phaseTime - dt) % 1.6;
+        if (pNow >= 1.2 && pPrev < 1.2) audio.playGhostWarn();
+      }
+
+      goEthereal() {
+        // Volta para a fase etérea logo após assombrar (evita colisão em sequência)
+        this.phaseTime = Math.min(this.phaseTime, 0.55);
+      }
+
+      draw() {
+        ctx.save();
+        if (this.neutralized) {
+          if ((this.deathT || 0) < 1) this.deathT = Math.min(1, (this.deathT || 0) + 0.016 * 3);
+          // Desfaz em névoa
+          ctx.globalAlpha = Math.max(0, 1 - (this.deathT || 0) * 1.4);
+        } else {
+          const p = this.phaseTime % 1.6;
+          ctx.globalAlpha = p < 1.2 ? 0.55 : 1.0;
+        }
+
+        const spr = loadedSprites.espectro;
+        if (spr && spr.width && spr.height) {
+          ctx.drawImage(spr, this.x, this.y, this.w, this.h);
+        } else {
+          // Fallback procedural: fantasma com rótulo "ESPECTRO" e olhos que acendem na sólida
+          const p = this.phaseTime % 1.6;
+          const solid = p >= 1.2;
+          const telegraph = p >= 0.8 && p < 1.2;
+
+          ctx.fillStyle = '#7e57c2';
+          ctx.strokeStyle = '#0b1528';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.roundRect(this.x + 8, this.y + 14, this.w - 16, this.h - 14, [10, 10, 18, 18]);
+          ctx.fill();
+          ctx.stroke();
+
+          // Corpo traspassado (névoa) na parte baixa
+          ctx.beginPath();
+          ctx.moveTo(this.x + 8, this.y + 46);
+          ctx.quadraticCurveTo(this.x + 12, this.y + 58, this.x + this.w / 2, this.y + 54);
+          ctx.quadraticCurveTo(this.x + this.w - 12, this.y + 58, this.x + this.w - 8, this.y + 46);
+          ctx.stroke();
+
+          // Olhos: brancos na etérea, vermelhos acesos no telegrafe/sólida
+          ctx.fillStyle = (solid || telegraph) ? '#ff2d55' : '#eceff1';
+          ctx.beginPath();
+          ctx.arc(this.x + this.w / 2 - 8, this.y + 26, 3.4, 0, Math.PI * 2);
+          ctx.arc(this.x + this.w / 2 + 8, this.y + 26, 3.4, 0, Math.PI * 2);
+          ctx.fill();
+
+          drawEntityLabel(this.x + this.w / 2, this.y + 50, 'ESPECTRO', '#ff8a80');
+        }
+
+        if (!this.neutralized) {
+          drawWarningIcon(this.x + this.w / 2, this.y - 12 + Math.sin((this.age || 0) * 6) * 2);
+          entityBubble(this, 'ESPECTRO', 'MORTE AO ADOLF HITLER!!');
+        }
+        ctx.restore();
+      }
+    }
+
     // --- COLETÁVEIS (PERKS, BANDEIRAS E ALGEMAS COM FALLBACK PROCEDURAL PADRONIZADO ~48PX) ---
     class CollectibleItem {
       constructor(x, y, type) {
@@ -2140,16 +2583,6 @@
             ctx.strokeRect(this.x + 9, this.y + 6, 28, 24);
 
             drawEntityLabel(this.x + 23, this.y + 18, '14', '#ffd400');
-          } else if (this.type === 'algema') {
-            ctx.strokeStyle = '#cfd8dc';
-            ctx.lineWidth = 3.5;
-            ctx.beginPath();
-            ctx.arc(cx - 8, cy, 8, 0, Math.PI * 2);
-            ctx.arc(cx + 8, cy, 8, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.fillStyle = '#ffd400';
-            ctx.fillRect(cx - 3, cy - 2, 6, 4);
           }
         }
         ctx.restore();
@@ -2223,6 +2656,8 @@
       hudCache.votes = null; hudCache.time = null; hudCache.handcuffs = null;
       hudCache.rank = null; hudCache.mult = null; hudCache.perk = null; hudCache.squad = null;
       hudCache.lives = null;
+      hudCache.haunt = null;
+      hudCache.rankPct = null;
 
       lives = MAX_LIVES;
       machistaFlashTimer = 0;
@@ -2235,7 +2670,10 @@
       worldTimeScale = 1;
 
       currentSpeedPx = INITIAL_SPEED_PX;
-      freezeTimer = 0;
+freezeTimer = 0;
+      collectStreak = 0;
+      collectStreakTimer = 0;
+      hauntedTimer = 0;
       votes = 0;
       obstaclesCleared = 0;
       handcuffs = 0;
@@ -2248,12 +2686,17 @@
       // O primeiro obstáculo surge só após ~3.8s de corrida
       spawnCooldown = 3.8;
       perkCooldown = 8.0;
+      scheduleSpawn(30, () => maybeForceEspectroSpawn());
 
       cardMultiplierTimer = 0;
       flagComboCount = 0;
       imperialModeTimer = 0;
       bookInvincibleTimer = 0;
       oncaRidingTimer = 0;
+      overdriveKind = null;
+      overdriveHashtagUsedThisRun = false;
+      squadHashtagUsedThisRun = false;
+      espectroForcedThisRun = false;
       hasShield = false;
       hasSwordStrike = false;
 
@@ -2306,6 +2749,18 @@
       if (bookInvincibleTimer > 0) bookInvincibleTimer -= dt;
       if (oncaRidingTimer > 0) oncaRidingTimer -= dt;
 
+      // OVERDRIVE unificado: atualiza o kind ativo conforme os timers (imperial/onça)
+      let nextOv = overdriveKind;
+      if (overdriveKind === 'onca' && oncaRidingTimer <= 0) {
+        nextOv = imperialModeTimer > 0 ? 'imperial' : null;
+      } else if (overdriveKind === 'imperial' && imperialModeTimer <= 0) {
+        nextOv = oncaRidingTimer > 0 ? 'onca' : null;
+      }
+      if (nextOv !== overdriveKind) {
+        overdriveKind = nextOv;
+        syncOverdriveBgm();
+      }
+
       if (activeBanner) {
         activeBanner.timer -= dt;
         if (activeBanner.timer <= 0) {
@@ -2335,6 +2790,15 @@
       }
       if (machistaFlashTimer > 0) machistaFlashTimer -= dt;
 
+      // Streak de coleta expira após 1.5s sem pegar item
+      if (collectStreakTimer > 0) {
+        collectStreakTimer -= dt;
+        if (collectStreakTimer <= 0) collectStreak = 0;
+      }
+
+      // Assombrado pelo Espectro: pontos congelados por 3s
+      if (hauntedTimer > 0) hauntedTimer -= dt;
+
       // Rampa suave de velocidade: 230 px/s até 600 px/s ao longo de ~90 segundos
       if (currentSpeedPx < MAX_SPEED_PX) {
         const rampRate = (MAX_SPEED_PX - INITIAL_SPEED_PX) / 90; // ~4.1 px/s por segundo
@@ -2351,7 +2815,9 @@
       const newRank = getRankByVotes(votes);
       if (newRank.title !== currentRankTier.title) {
         currentRankTier = newRank;
-        mostrarBanner(`PROMOVIDO A ${newRank.title.toUpperCase()}!`, "rank", "🎖️", "global");
+        audio.playRankUp();
+        const promoHashtag = newRank.isGold ? ' #PraCimaDelesRenan' : '';
+        mostrarBanner(`PROMOVIDO A ${newRank.title.toUpperCase()}!${promoHashtag}`, "rank", "🎖️", "global");
       }
 
       // Pulo variável
@@ -2401,6 +2867,9 @@
 
         // Coleta pelo Renan
         if (checkAABB(renan.x, renan.y, renan.w, renan.h, c.x, c.y, c.w, c.h)) {
+          collectStreak++;
+          collectStreakTimer = 1.5;
+          audio.playCollect(collectStreak);
           applyCollectible(c.type);
           collectibles.splice(i, 1);
           continue;
@@ -2431,7 +2900,9 @@
         // Inset padrão 2/4, mas cada obstáculo pode definir hitInset próprio (ex.: drone menor p/ desvio justo)
         const hx = (obs.hitInset && obs.hitInset.x != null) ? obs.hitInset.x : 2;
         const hy = (obs.hitInset && obs.hitInset.y != null) ? obs.hitInset.y : 4;
-        if (spawnGraceTimer <= 0 && !obs.neutralized && !obs.releaseHold && !obs.chainPending && checkAABB(renan.x + 2, renan.y + 4, renan.w - 4, renan.h - 4, obs.x + hx, obs.y + hy, obs.w - hx * 2, obs.h - hy * 2)) {
+        if (spawnGraceTimer <= 0 && !obs.neutralized && !obs.releaseHold && !obs.chainPending
+          && !(obs instanceof EspectroObstacle && obs.isEthereal())
+          && checkAABB(renan.x + 2, renan.y + 4, renan.w - 4, renan.h - 4, obs.x + hx, obs.y + hy, obs.w - hx * 2, obs.h - hy * 2)) {
           handleObstacleCollision(obs, i);
           continue;
         }
@@ -2484,6 +2955,57 @@
       updateHudDisplay();
     }
 
+    // --- EVENTO OVERDRIVE (onça + imperial) unificado ---
+    // As duas "super-formas" da partida entram pelo MESMO canal de apresentação:
+    // textos/banner/efeito de tela/música prendem a variação por kind ('onca'|'imperial').
+    // Novos tipos que quiserem o mesmo tratamento só adicionam um objeto aqui.
+    const OVERDRIVE_CONFIG = {
+      onca: {
+        bannerTitle: 'MODO ONÇA! ATROPELAMENTO',
+        bannerType: 'perk',
+        bannerEmoji: '🐆',
+        floatText: 'ONÇA!',
+        floatColor: '#e67e22',
+        hudTag: 'ONÇA PINTADA',
+        fx: '#e67e22'
+      },
+      imperial: {
+        bannerTitle: 'MODO IMPERIAL! X3 VOTOS',
+        bannerType: 'flag',
+        bannerEmoji: '👑',
+        floatText: 'X3 VOTOS!',
+        floatColor: '#ffd400',
+        hudTag: 'MODO IMPERIAL',
+        fx: '#ffd400'
+      }
+    };
+
+    function hexToRgba(hex, a) {
+      const n = parseInt(hex.slice(1), 16);
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    }
+
+    // Sincroniza a MÚSICA imperial (assets/audio/imperial.mp3). Sem arquivo =
+    // silêncio (fallback); o setBgm já ignora troca para o mesmo kind.
+    function syncOverdriveBgm() {
+      if (gameState === STATE.PLAYING) realAudio.setBgm(overdriveKind ? 'imperial' : 'game');
+    }
+
+    // Ativa o overdrive (onça ou imperial) com a apresentação unificada.
+    function triggerOverdrive(kind) {
+      const cfg = OVERDRIVE_CONFIG[kind];
+      if (!cfg) return;
+      overdriveKind = kind;
+      syncOverdriveBgm();
+      let title = cfg.bannerTitle;
+      if (!overdriveHashtagUsedThisRun) {
+        overdriveHashtagUsedThisRun = true;
+        title += ' #PraCimaDelesRenan';
+      }
+      mostrarBanner(title, cfg.bannerType, cfg.bannerEmoji);
+      addFloatingText(renan.x, renan.y - 24, cfg.floatText, cfg.floatColor);
+    }
+
     function applyCollectible(type) {
       const mult = getActiveMultiplier();
       audio.playDiaperPlaced();
@@ -2506,8 +3028,7 @@
         addFloatingText(renan.x, renan.y - 20, "ESPADIM!", "#ffd400");
       } else if (type === 'onca') {
         oncaRidingTimer = 5.5;
-        mostrarBanner("MODO ONÇA! ATROPELAMENTO", "perk", "🐆");
-        addFloatingText(renan.x, renan.y - 24, "ONÇA!", "#e67e22");
+        triggerOverdrive('onca');
       } else if (type === 'classica') {
         flagComboCount++;
         const pts = (flagComboCount === 1 ? 500 : (flagComboCount === 2 ? 1500 : 3000 + (flagComboCount - 3) * 1500)) * mult;
@@ -2517,12 +3038,7 @@
         addFloatingText(renan.x, renan.y - 20, `+${pts}`, "#2ecc71");
       } else if (type === 'imperial') {
         imperialModeTimer = 6;
-        mostrarBanner("MODO IMPERIAL! X3 VOTOS ATIVO", "flag", "👑");
-        addFloatingText(renan.x, renan.y - 25, "X3 VOTOS!", "#ffd400");
-      } else if (type === 'algema') {
-        handcuffs++;
-        mostrarBanner("+1 ALGEMA POLICIAL", "item", "⛓️");
-        addFloatingText(renan.x, renan.y - 20, "+1 ALGEMA", "#ffd400");
+        triggerOverdrive('imperial');
       }
     }
 
@@ -2544,6 +3060,7 @@
       if (obs instanceof LadraoObstacle) return 1000;
       if (obs instanceof MilitanteChaser) return 2000;
       if (obs instanceof TogaObstacle) return 4000;
+      if (obs instanceof EspectroObstacle) return 500;
       return 200;
     }
 
@@ -2568,7 +3085,12 @@
         thiefSquadActive = false;
         const gainQ = grantVotes(500);
         votes += gainQ;
-        mostrarBanner(`QUADRILHA DESMANTELADA! +${formatVotes(gainQ)} VOTOS`, "reward", "🏆", "global");
+        let quadText = `QUADRILHA DESMANTELADA! +${formatVotes(gainQ)} VOTOS`;
+        if (!squadHashtagUsedThisRun) {
+          squadHashtagUsedThisRun = true;
+          quadText += ' #PraCimaDelesRenan';
+        }
+        mostrarBanner(quadText, "reward", "🏆", "global");
 
         scheduleSpawn(1.0, () => {
           if (obstacles.length < 4 && !obstacles.some((o) => o instanceof MilitanteChaser)) {
@@ -2587,11 +3109,19 @@
         hasSwordStrike = false;
         obs.neutralized = true;
         if (obs instanceof LadraoObstacle && thiefSquadActive && thiefSquadCaught < 3) thiefSquadCaught++;
-        const swordTotal = grantVotes(getObstacleValue(obs) + 200);
+        // Espectro: espadim vale 500 votos (sem bônus extra de +200)
+        const swordBase = (obs instanceof EspectroObstacle) ? 500 : (getObstacleValue(obs) + 200);
+        const swordTotal = grantVotes(swordBase);
         votes += swordTotal;
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 16);
         addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(swordTotal)}`, '#ffd400');
         mostrarBanner(`GOLPE DE ESPADIM! +${formatVotes(swordTotal)} VOTOS`, "perk", "⚔️");
+        return;
+      }
+
+      // Livro Amarelo: atravessa o Espectro sem efeito (não neutraliza nem toma dano)
+      if (obs instanceof EspectroObstacle && bookInvincibleTimer > 0 && oncaRidingTimer === 0 && imperialModeTimer === 0) {
+        obs.goEthereal();
         return;
       }
 
@@ -2866,6 +3396,49 @@
         return;
       }
 
+      // ESPECTRO (só colide na fase sólida — etéreo é ignorado no loop de colisão)
+      if (obs instanceof EspectroObstacle) {
+        if (isStomp) {
+          // STOMP na fase sólida: EXORCISMO! +5.000 votos, desfaz em névoa
+          renan.vy = -8.6;
+          obs.neutralized = true;
+          const gainEs = grantVotes(5000);
+          votes += gainEs;
+          spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#9b59b6', 14);
+          mostrarBanner(`ESPECTRO EXORCIZADO! +${formatVotes(gainEs)} VOTOS`, "reward", "👻");
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, `+${formatVotes(gainEs)}`, '#ff8a80');
+          cameraShake = 3;
+          buzz(25);
+          audio.playHit();
+          return;
+        }
+
+        // Colisão sólida lateral: ASSOMBRADO! 3s — rouba 15% dos votos (teto 5.000) + véu roxo pulsante
+        if (hauntedTimer > 0) {
+          // Já assombrado: volta pra etérea sem reaplicar o efeito
+          obs.goEthereal();
+          return;
+        }
+        hauntedTimer = 3;
+        obs.goEthereal();
+        renan.vy = -7;
+        renan.isGrounded = false;
+        renan.isFastFalling = false;
+        renan.currentPlatform = null;
+        cameraShake = 4;
+        audio.playHit();
+        buzz(30);
+        const lost = Math.min(5000, Math.round(votes * 0.15));
+        if (lost > 0) {
+          votes = Math.max(0, votes - lost);
+          addFloatingText(obs.x + obs.w / 2, obs.y - 10, `-${formatVotes(lost)} VOTOS`, '#c39bd3');
+          mostrarBanner(`ASSOMBRADO! -${formatVotes(lost)} VOTOS ROUBADOS`, "danger", "👻");
+        } else {
+          mostrarBanner("ASSOMBRADO! NADA A ROUBAR…", "danger", "👻");
+        }
+        return;
+      }
+
       // Qualquer outra colisão lateral vira perda de vida (nunca morte instantânea)
       if (!loseLife(1, "Debate encerrado por colisão!")) return;
       obs.neutralized = true;
@@ -2891,7 +3464,7 @@
       for (const w of chainSpawnWarnings) {
         const timeLeft = Math.max(0, w.timer / 1.8);
         const bounce = 0.5 + 0.5 * Math.sin(now * 0.02);
-        const x = w.side === 'left' ? 64 : V_WIDTH - 64;
+        const x = V_WIDTH / 2;
         const y = 116 + bounce * 8;
         const ringR = 26 + bounce * 10;
         ctx.save();
@@ -3041,15 +3614,20 @@
       // FASE 3 (Após 40s): Todos os tipos, incluindo minichefia de ladrões
       } else {
         const r = Math.random();
-        if (r < 0.22) {
+        // Espectro: raro, standalone (folga ≥260px de qualquer entidade) e nunca duplicado em tela
+        const espectroOk = !obstacles.some((o) => o instanceof EspectroObstacle)
+          && obstacles.every((o) => o.x < spawnX - 260);
+        if (r < 0.20) {
           pulpits.push(createNextPulpit(spawnX));
-        } else if (r < 0.40) {
+        } else if (r < 0.36) {
           obstacles.push(new JornalistaObstacle(spawnX));
-        } else if (r < 0.54) {
+        } else if (r < 0.50) {
           obstacles.push(new McLatrocinioObstacle(spawnX));
-        } else if (r < 0.66 && !obstacles.some((o) => o instanceof DroneObstacle)) {
+        } else if (r < 0.58 && !obstacles.some((o) => o instanceof DroneObstacle)) {
           obstacles.push(new DroneObstacle(spawnX, 410));
-        } else if (r < 0.88 && !thiefSquadActive && obstacles.length <= 1) {
+        } else if (r < 0.68 && espectroOk) {
+          obstacles.push(new EspectroObstacle(spawnX));
+        } else if (r < 0.80 && !thiefSquadActive && obstacles.length <= 1) {
           // Trio de ladrões bem espaçado (116px entre si p/ dar respiro entre pulos)
           thiefSquadActive = true;
           thiefSquadCount = 3;
@@ -3057,7 +3635,7 @@
           obstacles.push(new LadraoObstacle(spawnX, 1));
           obstacles.push(new LadraoObstacle(spawnX + 116, 2));
           obstacles.push(new LadraoObstacle(spawnX + 232, 3));
-        } else if (r < 0.94) {
+        } else if (r < 0.92) {
           obstacles.push(new ExMblObstacle(spawnX));
         } else {
           obstacles.push(new TogaObstacle(spawnX));
@@ -3068,6 +3646,29 @@
       for (const obs of obstacles) maybeIntroduceObstacle(obs);
     }
 
+    // Aparição FORÇADA do Espectro aos 30s de corrida (1x por run).
+    // Depois disso o Espectro só volta pelo raro aleatório da fase 3.
+    function maybeForceEspectroSpawn() {
+      if (espectroForcedThisRun) return;
+      if (gameState !== STATE.PLAYING) return;
+      if (obstacles.some((o) => o instanceof EspectroObstacle)) return;
+
+      const edgeX = V_WIDTH + 50;
+      // Mesmas salvaguardas do spawner: folga de 140px na borda e folga ≥260px de entidades
+      const blocked = obstacles.some((o) => Math.abs(o.x - edgeX) < 140)
+        || pulpits.some((p) => Math.abs(p.x - edgeX) < 140)
+        || obstacles.some((o) => o.x > edgeX - 260);
+      if (blocked) {
+        scheduleSpawn(0.6, maybeForceEspectroSpawn);
+        return;
+      }
+
+      espectroForcedThisRun = true;
+      const ghost = new EspectroObstacle(edgeX);
+      obstacles.push(ghost);
+      maybeIntroduceObstacle(ghost);
+    }
+
     // Perfil do card de apresentação por tipo de inimigo
     const ENCOUNTER_PROFILES = {
       JornalistaObstacle: { name: 'JORNALISTA', quip: 'E O FEMINICÍDIO, CANDIDATO?', emoji: '📢' },
@@ -3076,13 +3677,29 @@
       LadraoObstacle:     { name: 'LADRÃO DE CELULAR', quip: 'PASSA O CELULAR!',  emoji: '📱' },
       MilitanteChaser:    { name: 'MILITANTE',   quip: 'SOLTA ELE!',              emoji: '🚩' },
       DroneObstacle:      { name: 'DRONE',       quip: 'MISÓGINO, AGRESSOR DE MULHER!', emoji: '🚁' },
-      TogaObstacle:       { name: 'TOGA DO SUPREMO', quip: 'INDEFERIDO!',         emoji: '⚖️' }
+      TogaObstacle:       { name: 'TOGA DO SUPREMO', quip: 'INDEFERIDO!',         emoji: '⚖️' },
+      EspectroObstacle:   { name: 'ESPECTRO',     quip: 'MORTE AO ADOLF HITLER!!', emoji: '👻' }
     };
 
     function maybeIntroduceObstacle(obs) {
       const profile = ENCOUNTER_PROFILES[obs.constructor.name];
       if (!profile) return;
       triggerEncounterIntro(obs.constructor.name, profile.name, profile.quip, profile.emoji);
+    }
+
+    // Arquivo real (assets/audio/enemy_*.mp3) por tipo de inimigo no card de introdução
+    function enemyFixtureKey(typeKey) {
+      const map = {
+        JornalistaObstacle: 'enemy_jornalista',
+        ExMblObstacle: 'enemy_exmbl',
+        McLatrocinioObstacle: 'enemy_mc',
+        LadraoObstacle: 'enemy_ladrao',
+        MilitanteChaser: 'enemy_militante',
+        DroneObstacle: 'enemy_drone',
+        TogaObstacle: 'enemy_toga',
+        EspectroObstacle: 'enemy_espectro'
+      };
+      return map[typeKey] || null;
     }
 
     function spawnCollectible(x) {
@@ -3100,10 +3717,8 @@
         type = 'espadim';
       } else if (pRoll < 0.58) {
         type = 'broche';
-      } else if (pRoll < 0.78) {
-        type = 'classica';
       } else if (pRoll < 0.90) {
-        type = 'algema';
+        type = 'classica';
       } else {
         type = 'valete';
       }
@@ -3162,6 +3777,29 @@
         document.getElementById('hud-rank').textContent = currentRank.title;
       }
 
+      // Barra de progresso até a próxima patente (cheia = patente máxima)
+      const rankIdx = RANK_TIERS.indexOf(currentRank);
+      let pct = 1;
+      let nextTitle = '';
+      if (rankIdx > 0) {
+        const cur = RANK_TIERS[rankIdx].min;
+        const next = RANK_TIERS[rankIdx - 1].min;
+        pct = Math.max(0, Math.min(1, (votes - cur) / (next - cur)));
+        nextTitle = RANK_TIERS[rankIdx - 1].title;
+      }
+      const pctKey = `${pct.toFixed(2)}|${nextTitle}`;
+      if (hudCache.rankPct !== pctKey) {
+        hudCache.rankPct = pctKey;
+        const fill = document.getElementById('hud-rank-fill');
+        if (fill) {
+          fill.style.width = `${Math.round(pct * 100)}%`;
+          const track = fill.parentElement;
+          if (track) {
+            track.title = nextTitle ? `Próxima patente: ${nextTitle}` : 'Patente máxima alcançada!';
+          }
+        }
+      }
+
       const multVal = getActiveMultiplier();
       const mKey = multVal > 1 ? `x${multVal}` : '';
       if (hudCache.mult !== mKey) {
@@ -3198,6 +3836,21 @@
         squadEl.textContent = `PRESOS: ${thiefSquadCaught}/3`;
       } else {
         squadEl.style.display = 'none';
+      }
+
+      // Assombrado pelo Espectro (👻 com timer de 3s)
+      const hauntVal = hauntedTimer > 0 ? `👻 ${Math.ceil(hauntedTimer)}s` : '';
+      if (hudCache.haunt !== hauntVal) {
+        hudCache.haunt = hauntVal;
+        const hauntEl = document.getElementById('hud-haunt');
+        if (hauntEl) {
+          if (hauntedTimer > 0) {
+            hauntEl.style.display = 'inline-flex';
+            hauntEl.textContent = hauntVal;
+          } else {
+            hauntEl.style.display = 'none';
+          }
+        }
       }
     }
 
@@ -3249,6 +3902,40 @@
             }
           }
         } else if (!p.stumbled) {
+          // Escudo R14 também absorve o TROMBO lateral no púlpito (consome o escudo)
+          if (hasShield) {
+            hasShield = false;
+            p.stumbled = true;
+            renan.vy = -8;
+            renan.isGrounded = false;
+            renan.isFastFalling = false;
+            renan.currentPlatform = null;
+            cameraShake = 6;
+            audio.playHit();
+            buzz(45);
+            spawnParticles(renan.x + renan.w / 2, renan.y + renan.h, '#3498db', 12);
+            mostrarBanner("ESCUDO ABSORVEU O IMPACTO!", "perk", "🛡️");
+            return;
+          }
+
+          // Invencível (onça/imperial/livro): tromba no púlpito sem perder vida
+          if (renan.isInvincible()) {
+            p.stumbled = true;
+            renan.vy = -8;
+            renan.isGrounded = false;
+            renan.isFastFalling = false;
+            renan.currentPlatform = null;
+            cameraShake = 3;
+            audio.playHit();
+            buzz(30);
+            if (oncaRidingTimer > 0) {
+              mostrarBanner("ATROPELADO PELO PÚLPITO! ONÇA SEGURA", "perk", "🐆");
+            } else {
+              mostrarBanner("INVENCÍVEL! TROMBA NO PÚLPITO SEM SUSTO", "perk", "💛");
+            }
+            return;
+          }
+
           // Colisão lateral não é morte injusta: o Renan tropeça, perde 1 vida e é jogado para cima
           p.stumbled = true;
           renan.vy = -8;
@@ -3314,17 +4001,15 @@
 
       ctx.save();
       const useGlobal = activeBanner.mode === 'global';
-      // Banner de AÇÃO: flutua logo acima dos inimigos, centrado no Renan (leitura junto à ação)
-      // Banner GLOBAL: centrado no canvas (progressão/avisos não críticos)
+      // TODOS os boxes de aviso ficam CENTRALIZADOS horizontalmente (banner de ação
+      // também acompanha o Renan apenas na vertical, mantendo a leitura no centro)
       const bW = Math.round(V_WIDTH * (useGlobal ? 0.82 : 0.74));
       const bH = Math.round(V_HEIGHT * (useGlobal ? 0.12 : 0.0625));
-      let bX, bY;
+      let bX = Math.round((V_WIDTH - bW) / 2);
+      let bY;
       if (useGlobal) {
-        bX = Math.round((V_WIDTH - bW) / 2);
         bY = Math.round((V_HEIGHT - bH) / 2);
       } else {
-        const anchX = (renan && renan.x !== undefined) ? renan.x + renan.w / 2 : V_WIDTH / 2;
-        bX = Math.round(Math.min(Math.max(anchX, bW / 2 + 4), V_WIDTH - bW / 2 - 4) - bW / 2);
         bY = 322;
       }
 
@@ -3350,33 +4035,99 @@
       ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
       ctx.shadowBlur = 10;
 
-// Ícone + Texto em negrito grande, com AUTOAJUSTE para nunca extrapolar a caixa
+// Ícone + Texto em negrito grande, com QUEBRA DE LINHA automática (até 2 linhas)
+      // antes de reduzir a fonte — nunca extrapola a caixa nem encolhe demais
       const cx = bX + bW / 2;
       const cy = bY + bH / 2;
 
-      let fontSize = 20;
-      ctx.font = `900 ${fontSize}px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      const fullText = `${activeBanner.icone} ${activeBanner.texto}`;
+      const maxLineW = bW - 32;
+      let textFont = 18;
+      let lines = [fullText];
+      const words = fullText.split(' ');
+      while (textFont >= 11) {
+        ctx.font = `900 ${textFont}px "Arial Black", sans-serif`;
+        const tmp = [];
+        let cur = '';
+        for (const w of words) {
+          const cand = cur ? cur + ' ' + w : w;
+          if (cur && ctx.measureText(cand).width > maxLineW) {
+            tmp.push(cur);
+            cur = w;
+          } else {
+            cur = cand;
+          }
+        }
+        if (cur) tmp.push(cur);
+        const fitsAll = tmp.every((l) => ctx.measureText(l).width <= maxLineW);
+        if ((fitsAll && tmp.length <= 2) || textFont <= 11) {
+          lines = tmp;
+          break;
+        }
+        textFont -= 1;
+      }
+      ctx.font = `900 ${textFont}px "Arial Black", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const fullText = `${activeBanner.icone} ${activeBanner.texto}`;
-      while (ctx.measureText(fullText).width > bW - 32 && fontSize > 10) {
-        fontSize -= 1;
-        ctx.font = `900 ${fontSize}px "Arial Black", sans-serif`;
-      }
+      const lineH = Math.ceil(textFont * 1.25);
+      const textStartY = cy - ((lines.length - 1) * lineH) / 2;
 
-      // Contorno preto de 4px
+      // Contorno preto de 4px em cada linha
+      ctx.lineJoin = 'round';
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 4;
-      ctx.strokeText(fullText, cx, cy);
-
       // Cor amarela #ffd400 de alto contraste
       ctx.fillStyle = '#ffd400';
-      ctx.fillText(fullText, cx, cy);
+      for (let i = 0; i < lines.length; i++) {
+        ctx.strokeText(lines[i], cx, textStartY + i * lineH);
+        ctx.fillText(lines[i], cx, textStartY + i * lineH);
+      }
 
       ctx.restore();
     }
 
+    // Modo de preview "pixel A": renderiza a cena em um offscreen de baixa resolução
+    // (canvas real temporariamente reduzido) e reescala com nearest-neighbor.
     function render() {
+      if (!PIXEL_MODE) {
+        drawScene();
+        return;
+      }
+      const fullW = canvas.width;
+      const fullH = canvas.height;
+      const lowW = Math.max(2, Math.round(fullW / PIXEL_RATIO));
+      const lowH = Math.max(2, Math.round(fullH / PIXEL_RATIO));
+      canvas.width = lowW;
+      canvas.height = lowH;
+      const s = Math.min(lowW / V_WIDTH, lowH / V_HEIGHT);
+      const ov = { scale: VIEW.scale, ox: VIEW.ox, oy: VIEW.oy };
+      VIEW.scale = s;
+      VIEW.ox = (lowW - V_WIDTH * s) / 2;
+      VIEW.oy = (lowH - V_HEIGHT * s) / 2;
+      let low;
+      try {
+        drawScene();
+        low = document.createElement('canvas');
+        low.width = lowW;
+        low.height = lowH;
+        low.getContext('2d').drawImage(canvas, 0, 0);
+      } finally {
+        canvas.width = fullW;
+        canvas.height = fullH;
+        VIEW.scale = ov.scale;
+        VIEW.ox = ov.ox;
+        VIEW.oy = ov.oy;
+      }
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#04081a';
+      ctx.fillRect(0, 0, fullW, fullH);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(low, 0, 0, fullW, fullH);
+      ctx.imageSmoothingEnabled = true;
+    }
+
+    function drawScene() {
       // Limpa todo o canvas em coordenadas de dispositivo (bonita borda letterbox)
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalAlpha = 1;
@@ -3446,8 +4197,81 @@
       // Indicador pulsante de reação em cadeia (de onde o inimigo gerado vem)
       drawChainWarnings();
 
-      // Card de apresentação "PRIMEIRO CONFRONTO" (acima de tudo)
+      // Assombração: pulso em VÓRTICE que cresce a partir do Renan até cobrir a tela
+      // por inteiro (sem visão) no pico — círculo que expande, e não quadrados em fade.
+      function drawHauntOverlay() {
+        if (hauntedTimer <= 0) return;
+        const tTotal = 3 - hauntedTimer; // tempo decorrido do efeito
+        // Fade de entrada e saída do efeito total
+        const fade = Math.min(1, tTotal / 0.35, hauntedTimer / 0.35);
+        if (fade <= 0.05) return;
+
+        // Ciclo de pulso: cresce até cobrir (62% do ciclo) e encolhe rápido (≈3 pulsos em 3s)
+        const cycle = 1.0;
+        const ph = (performance.now() / 1000) % cycle;
+        const upT = cycle * 0.62;
+        const grow = ph <= upT ? ph / upT : Math.max(0, 1 - (ph - upT) / (cycle - upT));
+
+        // Centro do vórtice: sobre o Renan (a assombração "engole" o personagem)
+        const rc = renan || {};
+        const cx = Math.max(0, Math.min(V_WIDTH, (rc.x || V_WIDTH / 2) + (rc.w || 0) / 2));
+        const cy = Math.max(0, Math.min(V_HEIGHT, (rc.y || V_HEIGHT / 2) + (rc.h || 0) / 2));
+
+        // Raio que garante cobrir QUALQUER canto da tela no pico do pulso
+        const farX = Math.max(cx, V_WIDTH - cx);
+        const farY = Math.max(cy, V_HEIGHT - cy);
+        const maxR = Math.hypot(farX, farY) + 24;
+        const r = Math.max(8, 24 + (maxR - 24) * grow);
+
+        const dark = Math.min(1, (0.45 + 0.55 * grow) * fade);
+        ctx.save();
+        const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, r);
+        g.addColorStop(0, `rgba(30, 12, 64, ${(dark * 0.6).toFixed(3)})`);
+        g.addColorStop(0.6, `rgba(22, 9, 52, ${(dark * 0.85).toFixed(3)})`);
+        g.addColorStop(0.9, `rgba(130, 60, 220, ${(0.65 * fade).toFixed(3)})`);
+        g.addColorStop(1, `rgba(6, 2, 18, ${dark.toFixed(3)})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+        ctx.restore();
+      }
+
+    // Efeito de tela do OVERDRIVE unificado (onça + imperial)
+    function drawOverdriveEffect() {
+      if (!overdriveKind) return;
+      const cfg = OVERDRIVE_CONFIG[overdriveKind];
+      const t = performance.now() / 1000;
+      const pulse = 0.1 + Math.sin(t * 4) * 0.05;
+      const aStr = pulse.toFixed(3);
+      ctx.save();
+      // Vinheta escura pulsante nas bordas (dramatiza o modo ativo)
+      const g = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
+      g.addColorStop(0, `rgba(0,0,0,${aStr})`);
+      g.addColorStop(0.5, `rgba(0,0,0,0)`);
+      g.addColorStop(1, `rgba(0,0,0,${aStr})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+      // Brilho lateral na cor do modo
+      ctx.fillStyle = hexToRgba(cfg.fx, (pulse * 0.6).toFixed(3));
+      const v = 22;
+      ctx.fillRect(0, 0, v, V_HEIGHT);
+      ctx.fillRect(V_WIDTH - v, 0, v, V_HEIGHT);
+      // Selo discreto com o nome do modo
+      ctx.textAlign = 'center';
+      ctx.font = '900 12px "Arial Black", sans-serif';
+      ctx.fillStyle = hexToRgba(cfg.fx, '0.85');
+      ctx.fillText(`${cfg.bannerEmoji} ${cfg.hudTag}`, V_WIDTH / 2, 26);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    }
+
+    // Card de apresentação "PRIMEIRO CONFRONTO" (acima de tudo)
       drawIntroCard();
+
+      // Efeito pulsante de ASSOMBRADO (Espetrô) por cima do card
+      drawHauntOverlay();
+
+      // Efeito de tela do overdrive (onça/imperial)
+      drawOverdriveEffect();
 
       // Pausa dramática do "MACHISTA!" destacado (bateu no drone)
       if (machistaFlashTimer > 0) {
@@ -3553,9 +4377,8 @@
     const btnPlay = document.getElementById('btn-play');
     const btnReplay = document.getElementById('btn-replay');
     const btnShare = document.getElementById('btn-share');
-    const soundBtn = document.getElementById('sound-btn');
-    const soundOn = document.getElementById('sound-icon-on');
-    const soundOff = document.getElementById('sound-icon-off');
+    const btnHome = document.getElementById('btn-home');
+    const soundToggle = document.getElementById('sound-toggle');
     const shareToast = document.getElementById('share-toast');
 
     // Opção persistente: pula as apresentações de inimigos (por dispositivo)
@@ -3567,6 +4390,9 @@
 
     function startGame() {
       audio.init();
+      realAudio.unlock();
+      realAudio.setBgm('game');
+      audio.playStartSting();
       isPaused = false;
       syncPauseUi();
       gameState = STATE.PLAYING;
@@ -3577,6 +4403,11 @@
       lbSubmittedThisRun = false;
       const lbSubmitBtn = document.getElementById('lb-submit');
       if (lbSubmitBtn) lbSubmitBtn.disabled = false;
+    }
+
+    function requestStartGame() {
+      if (gameState === STATE.PLAYING) return;
+      startGame();
     }
 
     function syncPauseUi() {
@@ -3596,6 +4427,7 @@
 
     document.getElementById('pause-btn').addEventListener('click', (e) => {
       e.stopPropagation();
+      audio.playClick();
       togglePause();
     });
 
@@ -3606,7 +4438,8 @@
     function triggerGameOver(reasonText) {
       if (gameState === STATE.GAMEOVER) return;
       gameState = STATE.GAMEOVER;
-      audio.playHit();
+      realAudio.setBgm(null);
+      audio.playGameOverSting();
       cameraShake = 12;
 
       // Salva recorde: cada algema vale +2.000 votos no fechamento
@@ -3617,6 +4450,7 @@
       lastVotes = finalVotes;
 
       const isNewRecord = finalVotes > highscore;
+      lastRunWasNewRecord = isNewRecord;
       if (isNewRecord) {
         highscore = finalVotes;
         localStorage.setItem('renan_mission_best', highscore.toString());
@@ -3627,8 +4461,9 @@
       // Obtém a Patente conquistada
       const rank = getRankByVotes(finalVotes);
 
-      // Preenche dados da tela final
-      document.getElementById('go-time-label').textContent = `Sobreviveu por ${gameTime.toFixed(1)}s`;
+      // Preenche dados da tela final (frase rotativa + tempo de sobrevivência)
+      const goLabel = document.getElementById('go-time-label');
+      goLabel.textContent = `Sobreviveu por ${gameTime.toFixed(1)}s`;
       document.getElementById('go-score').textContent = handcuffs;
       document.getElementById('go-votes').textContent = formatVotes(finalVotes);
       document.getElementById('go-obstacles').textContent = obstaclesCleared;
@@ -3674,7 +4509,7 @@
 
     btnPlay.addEventListener('click', (e) => {
       e.stopPropagation();
-      startGame();
+      requestStartGame();
     });
 
     btnReplay.addEventListener('click', (e) => {
@@ -3682,11 +4517,198 @@
       startGame();
     });
 
+    // Voltar para a tela inicial (discreto, no rodapé da tela final) e tocar a abertura de novo
+    btnHome.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audio.playClick();
+      audio.init();
+      realAudio.unlock();
+      gameState = STATE.MENU;
+      isPaused = false;
+      syncPauseUi();
+      worldTimeScale = 1;
+      overlayGameOver.classList.add('hidden');
+      overlayStart.classList.remove('hidden');
+      resetWorld();
+      lbSubmittedThisRun = false;
+      const lbSubmitBtn = document.getElementById('lb-submit');
+      if (lbSubmitBtn) lbSubmitBtn.disabled = false;
+      if (audio.enabled) realAudio.setBgm('start');
+    });
+
     // --- COMPARTILHAMENTO ---
     function buildSharePayload() {
       const shareUrl = window.location.href;
-      const text = `Consegui ${formatVotes(lastVotes || 0)} votos para o Renan! Jogue também e ajude o Renan a conseguir mais votos para essa Eleição!`;
+      const text = `Consegui ${formatVotes(lastVotes || 0)} votos para o Renan! Jogue também e ajude o Renan a conseguir mais votos para essa Eleição! #PraCimaDelesRenan`;
       return { text, url: shareUrl, full: `${text}\n${shareUrl}` };
+    }
+
+    // --- CARD PNG DE RECORDE (P2) ---
+    // Gera um card 1080x1350 com patente/placar para compartilhar como imagem.
+    const shareArtImg = new Image();
+    shareArtImg.src = './assets/capa-renan.png';
+    let shareArtReady = false;
+    let shareArtFailed = false;
+    shareArtImg.onload = () => { shareArtReady = true; };
+    shareArtImg.onerror = () => { shareArtFailed = true; };
+
+    function roundRectPath(c, x, y, w, h, r) {
+      const rr = Math.min(r, w / 2, h / 2);
+      c.beginPath();
+      c.moveTo(x + rr, y);
+      c.arcTo(x + w, y, x + w, y + h, rr);
+      c.arcTo(x + w, y + h, x, y + h, rr);
+      c.arcTo(x, y + h, x, y, rr);
+      c.arcTo(x, y, x + w, y, rr);
+      c.closePath();
+    }
+
+    function buildShareCardBlob() {
+      return new Promise((resolve) => {
+        const W = 1080, H = 1350;
+        const cnv = document.createElement('canvas');
+        cnv.width = W; cnv.height = H;
+        const c = cnv.getContext('2d');
+        const draw = () => {
+          const finalVotes = lastVotes || 0;
+          const totalCuffs = handcuffs;
+          const rank = getRankByVotes(finalVotes);
+
+          // Fundo em degradê
+          const g = c.createLinearGradient(0, 0, 0, H);
+          g.addColorStop(0, '#1a2c52');
+          g.addColorStop(0.55, '#0f1f3d');
+          g.addColorStop(1, '#0b1528');
+          c.fillStyle = g;
+          c.fillRect(0, 0, W, H);
+
+          // Moldura dourada
+          c.strokeStyle = 'rgba(255,212,0,0.4)';
+          c.lineWidth = 6;
+          roundRectPath(c, 30, 30, W - 60, H - 60, 28);
+          c.stroke();
+          c.strokeStyle = 'rgba(255,255,255,0.08)';
+          c.lineWidth = 2;
+          roundRectPath(c, 48, 48, W - 96, H - 96, 22);
+          c.stroke();
+
+          c.textAlign = 'center';
+          c.textBaseline = 'alphabetic';
+
+          // Selo superior
+          c.fillStyle = '#ffd400';
+          c.font = 'bold 34px Arial, sans-serif';
+          c.fillText('CAMPANHA OFICIAL', W / 2, 130);
+          c.font = '900 46px Georgia, serif';
+          c.fillText('pra cima deles,', W / 2, 168);
+          c.fillText('renan!', W / 2, 224);
+
+          // Arte oficial
+          const dim = 540;
+          const artY = 260;
+          if (shareArtReady) {
+            c.save();
+            roundRectPath(c, W / 2 - dim / 2, artY, dim, dim, 26);
+            c.clip();
+            c.drawImage(shareArtImg, W / 2 - dim / 2, artY, dim, dim);
+            c.restore();
+          } else {
+            const g2 = c.createLinearGradient(0, artY, 0, artY + dim);
+            g2.addColorStop(0, '#23375f');
+            g2.addColorStop(1, '#0d1930');
+            c.fillStyle = g2;
+            roundRectPath(c, W / 2 - dim / 2, artY, dim, dim, 26);
+            c.fill();
+            c.fillStyle = '#ffd400';
+            c.font = '900 120px Georgia, serif';
+            c.fillText('★', W / 2, artY + dim / 2 + 42);
+          }
+
+          // Placar principal: votos
+          c.fillStyle = '#9ab0d3';
+          c.font = 'bold 34px Arial, sans-serif';
+          c.fillText('VOTOS OBTIDOS', W / 2, artY + dim + 84);
+          c.fillStyle = '#ffd400';
+          c.font = '900 110px Georgia, serif';
+          c.fillText(formatVotes(finalVotes), W / 2, artY + dim + 196);
+
+          // Linha de estáticas
+          const stats = [
+            { label: 'ALGEMAS', value: String(totalCuffs) },
+            { label: 'TEMPO', value: formatTimeSeconds(lastGameTime) },
+            { label: 'OBSTÁCULOS', value: String(obstaclesCleared) }
+          ];
+          const statY = artY + dim + 300;
+          const statW = 292, statH = 128;
+          const gap = 36;
+          const leftX = (W - (statW * 3 + gap * 2)) / 2;
+          stats.forEach((s, i) => {
+            const x = leftX + i * (statW + gap);
+            c.fillStyle = 'rgba(255,255,255,0.05)';
+            roundRectPath(c, x, statY, statW, statH, 18);
+            c.fill();
+            c.fillStyle = '#ffffff';
+            c.font = '900 52px Georgia, serif';
+            c.fillText(s.value, x + statW / 2, statY + 66);
+            c.fillStyle = '#8da4c4';
+            c.font = 'bold 26px Arial, sans-serif';
+            c.fillText(s.label, x + statW / 2, statY + 108);
+          });
+
+          // Patente alcançada
+          const patY = statY + statH + 46;
+          c.fillStyle = rank.isGold ? '#ffd400' : '#ffffff';
+          c.font = 'bold 32px Arial, sans-serif';
+          c.fillText('PATENTE ALCANÇADA', W / 2, patY);
+          c.fillStyle = rank.isGold ? '#ffd400' : '#ffffff';
+          c.font = '900 52px Georgia, serif';
+          c.fillText(rank.title, W / 2, patY + 62);
+
+          // Recorde
+          const recY = patY + 112;
+          if (lastRunWasNewRecord) {
+            c.fillStyle = '#ffd400';
+            c.font = 'bold 40px Arial, sans-serif';
+            c.fillText('★ NOVO RECORDE ★', W / 2, recY);
+          } else {
+            c.fillStyle = '#8da4c4';
+            c.font = 'bold 32px Arial, sans-serif';
+            c.fillText(`RECORDE: ${formatVotes(highscore)}`, W / 2, recY);
+          }
+
+          // Rodapé
+          const footY = H - 110;
+          c.fillStyle = '#9ab0d3';
+          c.font = 'bold 34px Arial, sans-serif';
+          c.fillText('@ssalomao14  ·  #PraCimaDelesRenan', W / 2, footY);
+          c.fillStyle = '#5f789c';
+          c.font = '26px Arial, sans-serif';
+          c.fillText('Pontuação lúdica, sem premiação.', W / 2, footY + 46);
+
+          cnv.toBlob((blob) => resolve(blob), 'image/png');
+        };
+        if (shareArtReady || shareArtFailed) {
+          draw();
+        } else {
+          shareArtImg.onload = () => { shareArtReady = true; draw(); };
+          shareArtImg.onerror = () => { shareArtFailed = true; draw(); };
+        }
+      });
+    }
+
+    function downloadShareCard(blob, payload) {
+      const cardFileName = 'pra-cima-deles-renan-recorde.png';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = cardFileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(payload.full).catch(() => {});
+      }
+      showShareToast('Card de recorde gerado e link copiado! #PraCimaDelesRenan');
     }
 
     // Botão USAR COMPARTILHAR: abre o menu nativo do dispositivo (mobile).
@@ -3700,19 +4722,36 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(full).catch(() => {}); // clipboard pode exigir permissão
       }
-      showShareToast('Texto e link copiados para compartilhamento');
+      showShareToast('Texto e link copiados para compartilhamento · #PraCimaDelesRenan');
     }
 
-    btnShare.addEventListener('click', (e) => {
+    btnShare.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const { url, full } = buildSharePayload();
-      if (navigator.share && isMobileUA()) {
-        navigator.share({ text: full, url })
-          .catch((err) => {
-            if (!err || err.name !== 'AbortError') copyShareToClipboard(full);
-          });
-      } else {
-        copyShareToClipboard(full);
+      audio.playClick();
+      if (lastVotes <= 0) {
+        copyShareToClipboard(buildSharePayload().full);
+        return;
+      }
+      const payload = buildSharePayload();
+      try {
+        const blob = await buildShareCardBlob();
+        if (!blob) throw new Error('card-failed');
+        const file = new File([blob], cardFileName, { type: 'image/png' });
+        if (navigator.share && (navigator.canShare && navigator.canShare({ files: [file] }))) {
+          navigator.share({ title: 'pra cima deles, renan!', text: payload.text, url: payload.url, files: [file] })
+            .catch((err) => {
+              if (!err || err.name !== 'AbortError') downloadShareCard(blob, payload);
+            });
+        } else {
+          downloadShareCard(blob, payload);
+        }
+      } catch (err) {
+        // Fallback: compartilhamento só de texto (comportamento de antes)
+        if (navigator.share && isMobileUA()) {
+          navigator.share(payload).catch(() => {});
+        } else {
+          copyShareToClipboard(payload.full);
+        }
       }
     });
 
@@ -3818,6 +4857,7 @@
     if (lbSubmitEl) {
       lbSubmitEl.addEventListener('click', async (e) => {
         e.stopPropagation();
+        audio.playClick();
         if (lastFinalScore <= 0) {
           showShareToast('Jogue primeiro para registrar um resultado!');
           return;
@@ -3853,21 +4893,28 @@
 
     // Toggle de som (estado persistido no localStorage)
     function syncSoundUi() {
-      if (audio.enabled) {
-        soundOn.style.display = 'block';
-        soundOff.style.display = 'none';
-      } else {
-        soundOn.style.display = 'none';
-        soundOff.style.display = 'block';
-      }
+      if (soundToggle) soundToggle.classList.toggle('muted', !audio.enabled);
     }
 
-    soundBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
+    function toggleMute() {
       audio.enabled = !audio.enabled;
       localStorage.setItem('renan_mission_muted', audio.enabled ? '0' : '1');
       if (audio.enabled) audio.init();
+      realAudio.enabled = audio.enabled;
+      if (audio.enabled) {
+        realAudio.unlock();
+        // Na tela final (GAMEOVER) mantém o silêncio: game.mp3 é música de ação e
+        // NUNCA deve voltar a tocar depois que a partida termina.
+        realAudio.setBgm(gameState === STATE.PLAYING ? 'game' : (gameState === STATE.GAMEOVER ? null : 'start'));
+      } else {
+        realAudio.setBgm(null);
+      }
       syncSoundUi();
+    }
+
+    soundToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMute();
     });
 
     // --- GLOSSÁRIO DA LORE (MODAL) ---
@@ -3980,12 +5027,14 @@
     if (btnGlossary) {
       btnGlossary.addEventListener('click', (e) => {
         e.stopPropagation();
+        audio.playClick();
         openGlossary();
       });
     }
     if (glossaryClose) {
       glossaryClose.addEventListener('click', (e) => {
         e.stopPropagation();
+        audio.playClick();
         closeGlossary();
       });
     }
@@ -4022,8 +5071,24 @@
 
     // Mute persistido no localStorage + resume do AudioContext no primeiro gesto
     audio.enabled = localStorage.getItem('renan_mission_muted') !== '1';
+    realAudio.enabled = audio.enabled;
     syncSoundUi();
-    window.addEventListener('pointerdown', () => audio.init(), { once: true });
+
+    // Pré-carrega a música para o primeiro toque ser instantâneo (sem atraso de fetch/decodificação)
+    realAudio.prewarm('start');
+    realAudio.prewarm('game');
+
+    // Primeiro gesto desbloqueia o áudio (política de autoplay do navegador).
+    // Na tela inicial toca o trecho de campanha + voz do Renan (se os arquivos
+    // existirem em assets/audio/); se o jogador já tiver começado, mantém o tema de jogo.
+    window.addEventListener('pointerdown', () => {
+      audio.init();
+      realAudio.unlock();
+      if (realAudio.enabled && gameState !== STATE.PLAYING) {
+        realAudio.setBgm('start');
+        realAudio.playOne('renan_voice', 1.0);
+      }
+    }, { once: true });
 
     // Iniciação
     resizeCanvas();

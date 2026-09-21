@@ -225,6 +225,13 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     }
 
+    /* Marca longa: "pra cima deles, renan!" em duas linhas, escalada p/ caber */
+    .start-title.new-brand {
+      font-size: 1.8rem;
+      line-height: 1.15;
+      letter-spacing: -0.4px;
+    }
+
     .start-title span {
       color: var(--accent);
     }
@@ -237,15 +244,70 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       max-width: 320px;
     }
 
+    .start-hashtag {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #ffd400;
+      text-shadow: 0 0 14px rgba(255, 212, 0, 0.35);
+    }
+
+    /* Card de abertura após apertar JOGAR */
+    .splash-card {
+      position: relative;
+      width: min(320px, 86vw);
+      padding: 28px 24px;
+      text-align: center;
+      border-radius: 18px;
+      background: linear-gradient(160deg, #0d193a 0%, #081226 100%);
+      border: 1.5px solid rgba(255, 212, 0, 0.65);
+      box-shadow: 0 0 34px rgba(255, 212, 0, 0.45), inset 0 0 34px rgba(255, 212, 0, 0.08);
+      animation: splashPop 0.42s ease-out;
+    }
+
+    .splash-sub {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 6px;
+      color: #9ab0d3;
+      margin-bottom: 6px;
+    }
+
+    .splash-main {
+      font-size: 2.1rem;
+      font-weight: 900;
+      line-height: 1.12;
+      color: #ffd400;
+      text-shadow: 0 0 22px rgba(255, 212, 0, 0.6);
+    }
+
+    .splash-main span {
+      color: #ffffff;
+    }
+
+    .splash-tag {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #6f8ab8;
+    }
+
+    @keyframes splashPop {
+      0% { transform: scale(0.9); opacity: 0.4; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
     /* Arte Conceitual Oficial do Renan */
     .start-art-container {
       position: relative;
       width: 100%;
-      max-width: 320px;
+      max-width: 420px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 8px 0;
+      margin: 4px 0;
     }
 
     .start-art-glow {
@@ -260,10 +322,12 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     .start-art-img {
       position: relative;
       z-index: 2;
-      width: auto;
-      max-width: 80%;
-      max-height: 37vh;
-      object-fit: contain;
+      width: 100%;
+      max-width: 100%;
+      max-height: 46vh;
+      aspect-ratio: 4 / 5;
+      object-fit: cover;
+      object-position: center 30%;
       border-radius: 14px;
       border: 1.5px solid rgba(255, 212, 0, 0.4);
       box-shadow: 0 0 28px rgba(255, 212, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.7);
@@ -373,6 +437,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       top: 10px;
       left: 10px;
       right: 10px;
+      padding-right: 60px;
       display: flex;
       flex-direction: column;
       gap: 7px;
@@ -495,6 +560,24 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       text-shadow: 0 1px 2px rgba(0,0,0,0.8);
     }
 
+    /* Barra de progresso da patente (fixa na base do chip) */
+    .rank-chip.rank-chip { padding-bottom: 7px; }
+    .rank-progress {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .rank-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #ffd400;
+      box-shadow: 0 0 6px rgba(255, 212, 0, 0.7);
+      transition: width 0.25s linear;
+    }
+
     .hud-badge.mult {
       background: #ffd400;
       color: #0b1528;
@@ -527,6 +610,19 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       border: 1px solid #ff7676;
     }
 
+    /* Espectro assombrando: roxo fantasmagórico com pulso sutil */
+    .hud-badge.haunt {
+      background: rgba(126, 87, 194, 0.28);
+      color: #d6b7ff;
+      border: 1px solid #b388ff;
+      animation: haunt-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes haunt-pulse {
+      0%, 100% { box-shadow: 0 0 4px rgba(179, 136, 255, 0.5); }
+      50% { box-shadow: 0 0 12px rgba(179, 136, 255, 0.9); }
+    }
+
     /* Quick Action HUD (sound toggle) */
     .hud-btn {
       pointer-events: auto;
@@ -540,6 +636,59 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       align-items: center;
       justify-content: center;
       cursor: pointer;
+    }
+
+    /* Botão de som GLOBAL: canto superior direito da TELA do jogo, em qualquer tela */
+    .sound-toggle-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 1000;
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      border: 3px solid #0a1426;
+      background: #ffd400;
+      color: #0a1426;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .sound-toggle-btn svg {
+      width: 28px;
+      height: 28px;
+      pointer-events: none;
+      display: block;
+    }
+
+    /* O "risco" diagonal que indica mudo (sem som) */
+    .sound-toggle-slash {
+      position: absolute;
+      inset: 0;
+      display: none;
+      pointer-events: none;
+    }
+
+    .sound-toggle-btn.muted .sound-toggle-slash {
+      display: block;
+    }
+
+    .sound-toggle-slash::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 34px;
+      height: 5px;
+      background: #000000;
+      border-radius: 3px;
+      transform: translate(-50%, -50%) rotate(45deg);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
     }
 
     /* Game Over Modal / Cards */
@@ -676,6 +825,25 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       background: rgba(255, 255, 255, 0.18);
     }
 
+    /* Botão discreto "voltar ao início" na tela final */
+    .btn-home {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #6c84a8;
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      align-self: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-home:active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f0f4fc;
+    }
+
     .share-toast {
       position: absolute;
       top: 60px;
@@ -708,7 +876,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       cursor: pointer;
     }
 
-    .gameover-author {
+.gameover-author {
       margin-top: 14px;
       font-size: 0.72rem;
       color: #5b6472;
@@ -726,146 +894,152 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       font-size: 0.68rem;
     }
 
-    /* --- TELA FINAL COMPACTA: TUDO CABE EM 1 TELA (sem rolagem de página) --- */
+    /* --- TELA FINAL COMPACTA: TUDO CABE EM 1 TELA (sem rolagem) --- */
     #overlay-gameover {
-      padding: 10px 14px 14px;
+      padding: 8px 14px 10px;
       justify-content: flex-start;
-      gap: 8px;
+      gap: 6px;
+      overflow: hidden;
     }
     #overlay-gameover h2#go-time-label {
-      margin-top: 0;
-      font-size: 1.25rem;
+      margin: 0;
+      font-size: 1.05rem;
+      line-height: 1.2;
     }
     #overlay-gameover .gameover-card {
-      padding: 12px 14px;
+      padding: 10px 12px;
     }
     #overlay-gameover .rank-highlight-box {
-      padding: 7px 12px;
-      margin-bottom: 8px;
+      padding: 6px 10px;
+      margin-bottom: 6px;
     }
     #overlay-gameover .rank-title {
-      font-size: 1rem;
+      font-size: 0.95rem;
     }
     #overlay-gameover .rank-title.gold-tier {
-      font-size: 1.12rem;
+      font-size: 1.05rem;
     }
     #overlay-gameover .stats-grid {
-      gap: 6px;
-      margin: 6px 0 8px;
+      gap: 5px;
+      margin: 5px 0 6px;
     }
     #overlay-gameover .stat-item {
-      padding: 6px;
+      padding: 5px;
       border-radius: 8px;
     }
     #overlay-gameover .stat-val {
-      font-size: 1.1rem;
+      font-size: 1rem;
     }
     #overlay-gameover .stat-lbl {
-      font-size: 0.6rem;
+      font-size: 0.58rem;
       margin-top: 2px;
+      line-height: 1.1;
     }
     #overlay-gameover .new-record-badge {
-      font-size: 0.9rem;
-      padding: 5px 8px;
-      margin: 0 0 8px;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      margin: 0 0 6px;
     }
     #overlay-gameover #go-conv-note {
-      margin: 4px 0 2px;
-      font-size: 0.72rem;
+      margin: 3px 0 2px;
+      font-size: 0.68rem;
     }
     #overlay-gameover .leaderboard-card {
-      padding: 6px 8px 8px;
-      margin-bottom: 6px;
-    }
-    #overlay-gameover .leaderboard-head {
-      font-size: 0.72rem;
-      padding-bottom: 4px;
+      padding: 6px 8px;
       margin-bottom: 4px;
     }
+    #overlay-gameover .leaderboard-head {
+      font-size: 0.68rem;
+      padding-bottom: 3px;
+      margin-bottom: 3px;
+    }
     #overlay-gameover .leaderboard-list {
-      max-height: 88px;
+      max-height: 72px;
       gap: 2px;
     }
     #overlay-gameover .lb-row {
-      padding: 3px 6px;
-      font-size: 0.72rem;
+      padding: 2px 6px;
+      font-size: 0.68rem;
       gap: 6px;
     }
     #overlay-gameover .lb-medal {
-      font-size: 0.85rem;
-      width: 20px;
+      font-size: 0.8rem;
+      width: 18px;
     }
     #overlay-gameover .lb-pos {
-      width: 20px;
+      width: 18px;
     }
     #overlay-gameover .leaderboard-register {
-      margin-top: 6px;
+      margin-top: 4px;
     }
     #overlay-gameover #lb-nick {
-      padding: 6px 8px;
-      font-size: 0.78rem;
+      padding: 5px 8px;
+      font-size: 0.74rem;
     }
     #overlay-gameover .lb-submit {
-      padding: 0 10px;
-      font-size: 0.7rem;
-    }
-    #overlay-gameover .leaderboard-note {
-      margin-top: 4px;
-      font-size: 0.64rem;
-    }
-    #overlay-gameover .actions-stack {
-      gap: 6px;
-    }
-    #overlay-gameover .btn-secondary-action {
-      padding: 8px 14px;
-      font-size: 0.85rem;
-    }
-    #overlay-gameover .btn-play-large {
-      padding: 13px 20px;
-      font-size: 1.1rem;
-    }
-    #overlay-gameover .official-link {
-      margin-top: 4px;
-      font-size: 0.68rem;
-    }
-    #overlay-gameover .gameover-author {
-      margin-top: 6px;
+      padding: 0 8px;
       font-size: 0.66rem;
     }
-    #overlay-gameover .gameover-disclaimer {
+    #overlay-gameover .leaderboard-note {
       margin-top: 3px;
+      font-size: 0.6rem;
+    }
+    #overlay-gameover .actions-stack {
+      gap: 5px;
+    }
+    #overlay-gameover .btn-secondary-action {
+      padding: 7px 12px;
+      font-size: 0.8rem;
+    }
+    #overlay-gameover .btn-play-large {
+      padding: 11px 18px;
+      font-size: 1.05rem;
+    }
+    #overlay-gameover .official-link {
+      margin-top: 3px;
+      font-size: 0.66rem;
+    }
+    #overlay-gameover .gameover-author {
+      margin-top: 4px;
       font-size: 0.64rem;
+    }
+    #overlay-gameover .gameover-disclaimer {
+      margin-top: 2px;
+      font-size: 0.62rem;
     }
 
     /* Telas muito baixas (celulares antigos/landscape): encolhe mais ainda */
     @media (max-height: 680px) {
       #overlay-gameover {
-        padding: 6px 12px 10px;
-        gap: 5px;
+        padding: 5px 12px 8px;
+        gap: 4px;
       }
       #overlay-gameover .gameover-card {
-        padding: 8px 12px;
+        padding: 7px 10px;
       }
       #overlay-gameover .stats-grid {
         gap: 4px;
-        margin: 4px 0 6px;
+        margin: 4px 0 5px;
       }
       #overlay-gameover .stat-item {
         padding: 4px;
       }
       #overlay-gameover .leaderboard-list {
-        max-height: 66px;
+        max-height: 58px;
       }
       #overlay-gameover .actions-stack {
         gap: 4px;
       }
       #overlay-gameover .btn-secondary-action {
-        padding: 6px 12px;
-        font-size: 0.8rem;
+        padding: 5px 10px;
+        font-size: 0.76rem;
       }
       #overlay-gameover .btn-play-large {
-        padding: 10px 18px;
+        padding: 9px 16px;
         font-size: 1rem;
+      }
+      #overlay-gameover .gameover-author {
+        margin-top: 3px;
       }
     }
 
@@ -873,7 +1047,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     .modal-backdrop {
       position: absolute;
       inset: 0;
-      z-index: 90;
+      z-index: 1010;
       background: rgba(4, 9, 18, 0.82);
       display: flex;
       align-items: center;
