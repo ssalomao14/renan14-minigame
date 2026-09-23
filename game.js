@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.8';
+    const GAME_VERSION = '0.1.9';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -400,11 +400,23 @@
         list.forEach((cb) => cb(d));
       }
 
-      // Deve ser chamado DENTRO de um gesto do usuário (desbloqueia autoplay)
+      // Deve ser chamado DENTRO de um gesto do usuário (desbloqueia autoplay).
+      // Re-tenta o resume em TODA chamada: o iOS pode rejeitar a 1ª tentativa
+      // (feita no load, fora de gesto) e o unlock fica sem efeito se nunca re-tentar.
       unlock() {
-        if (this.unlocked) return;
         this.unlocked = true;
-        if (this._ensureCtx() && this.ctx.state === 'suspended') this.ctx.resume();
+        let wasSuspended = false;
+        if (this._ensureCtx() && this.ctx.state === 'suspended') {
+          wasSuspended = true;
+          try { this.ctx.resume().catch(() => {}); } catch (err) {}
+        }
+        if (wasSuspended && this._bgmNode) {
+          // Nó criado com o ctx suspenso não reproduz de forma confiável no iOS
+          // (a faixa "toca" em silêncio durante a suspensão). Remove, para o próximo
+          // setBgm recriá-lo já com o áudio rodando.
+          this._purgeBgmNodes();
+          this.bgmKind = null;
+        }
       }
 
       // kind: 'start' (toca UMA vez) | 'game' (loop) | null (para a música com fade)
@@ -695,6 +707,17 @@
     // Uma vez por sessão, cada tipo de inimigo é apresentado com PAUSA TOTAL do mundo
     // (card + nome + piada; nada se move durante a apresentação; toque pula).
     // A opção "não mostrar novamente" fica persistida no navegador (por dispositivo).
+
+    // O card é desenhado no canvas, então esconde o HUD (DOM no topo) durante a
+    // exibição: o card precisa ter precedência visual sobre as pontuações.
+    let hudHiddenByCard = false;
+    function setHudHiddenByCard(on) {
+      if (hudHiddenByCard === on) return;
+      hudHiddenByCard = on;
+      const hudEl = document.getElementById('hud');
+      if (hudEl) hudEl.style.display = on ? 'none' : '';
+    }
+
     function triggerEncounterIntro(typeKey, name, quip, emoji) {
       if (encounteredTypes.has(typeKey)) return;
       if (gameState !== STATE.PLAYING) return;
@@ -716,6 +739,7 @@
         return;
       }
       activeCard = card;
+      setHudHiddenByCard(true);
       audio.playReveal();
       buzz(20);
       const fixtureKey = enemyFixtureKey(card.typeKey);
@@ -735,6 +759,7 @@
         return;
       }
       activeCard = null;
+      setHudHiddenByCard(false);
       worldTimeScale = 1;
     }
 
@@ -2994,6 +3019,7 @@
       pendingIntroQueue.length = 0;
       lastIntroAt = 0;
       activeCard = null;
+      setHudHiddenByCard(false);
       worldTimeScale = 1;
 
       currentSpeedPx = INITIAL_SPEED_PX;
@@ -4646,6 +4672,9 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       // por inteiro — no PICO (0,5s) a tela fica COMPLETAMENTE opaca (cegueira total,
       // cobre inclusive o HUD via overlay DOM #haunt-blind). Curto, mas 100% punitivo.
       function drawHauntOverlay() {
+        // Morreu com a assombração ativa: a cegueira NÃO pode voltar a piscar na
+        // tela final (a render continua rodando no game over)
+        if (gameState !== STATE.PLAYING) return;
         if (hauntedTimer <= 0) return;
         const tTotal = 3 - hauntedTimer; // tempo decorrido do efeito
         // Fade de entrada e saída do efeito total
@@ -4938,6 +4967,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       if (gameState === STATE.GAMEOVER) return;
       gameState = STATE.GAMEOVER;
       setHauntBlind(false); // se morreu durante a assombração, garante que o blackout não fique preso na tela
+      hauntedTimer = 0; // encerra o ciclo de cegueira: o overlay não volta a piscar no game over
       realAudio.setBgm(null);
       audio.playGameOverSting();
       cameraShake = 6;
@@ -5731,23 +5761,26 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       realAudio.setBgm('start'); // dispara sozinho se o autoplay permitir; senão, na fila
     }
 
-    // Unlock determinístico no PRIMEIRO gesto de QUALQUER tipo (pointer/mouse, tecla
-    // ou toque): resume o AudioContext e garante a intro na tela inicial (a voz do Renan
-    // só toca uma vez, na primeira interação). O jogo em andamento não é afetado.
-    let audioUnlockedByGesture = false;
-    function firstGestureUnlock() {
-      if (audioUnlockedByGesture) return;
-      audioUnlockedByGesture = true;
-      audio.init();
-      realAudio.unlock();
-      if (realAudio.enabled && gameState !== STATE.PLAYING) {
-        realAudio.setBgm('start');
-        realAudio.playOne('renan_voice', 1.0);
+// Unlock determinístico a cada gesto de QUALQUER tipo (pointer/mouse, tecla
+      // ou toque): resume o AudioContext re-tentando em cada gesto (iOS às vezes
+      // rejeita o 1º) e garante a intro na tela inicial. A voz do Renan só toca
+      // uma vez, na primeira interação. O jogo em andamento não é afetado.
+      let audioUnlockedByGesture = false;
+      function firstGestureUnlock() {
+        // unlock ANTES do audio.init(): se o ctx ainda estiver suspenso, o unlock
+        // purga o nó de música que foi criado em silêncio no load (pré-gesto).
+        realAudio.unlock();
+        audio.init();
+        if (audioUnlockedByGesture) return;
+        audioUnlockedByGesture = true;
+        if (realAudio.enabled && gameState !== STATE.PLAYING) {
+          realAudio.setBgm('start');
+          realAudio.playOne('renan_voice', 1.0);
+        }
       }
-    }
-    window.addEventListener('pointerdown', firstGestureUnlock, { once: true });
-    window.addEventListener('keydown', firstGestureUnlock, { once: true });
-    window.addEventListener('touchstart', firstGestureUnlock, { once: true });
+      window.addEventListener('pointerdown', firstGestureUnlock);
+      window.addEventListener('keydown', firstGestureUnlock);
+      window.addEventListener('touchstart', firstGestureUnlock);
 
     // Iniciação
     resizeCanvas();
