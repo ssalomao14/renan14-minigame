@@ -30,6 +30,13 @@ else {
 
 const next = `${major}.${minor}.${patch}`;
 fs.writeFileSync(FILE, src.replace(m[0], `const ${TAG} = '${next}'`));
+
+// Cache-busting: atualiza ?v= nos assets do index.html para a nova versao
+const INDEX = path.join(__dirname, 'index.html');
+let html = fs.readFileSync(INDEX, 'utf8').replace(/styles\.css\?v=[\d.]+/g, `styles.css?v=${next}`);
+html = html.replace(/game\.js\?v=[\d.]+/g, `game.js?v=${next}`);
+fs.writeFileSync(INDEX, html);
+
 console.log(`OK: ${m[1]} -> ${next}`);
 console.log('');
 console.log('Proximos passos (release):');
