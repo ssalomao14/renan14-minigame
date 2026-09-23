@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.9';
+    const GAME_VERSION = '0.1.10';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -405,18 +405,21 @@
       // (feita no load, fora de gesto) e o unlock fica sem efeito se nunca re-tentar.
       unlock() {
         this.unlocked = true;
-        let wasSuspended = false;
-        if (this._ensureCtx() && this.ctx.state === 'suspended') {
-          wasSuspended = true;
-          try { this.ctx.resume().catch(() => {}); } catch (err) {}
-        }
-        if (wasSuspended && this._bgmNode) {
-          // Nó criado com o ctx suspenso não reproduz de forma confiável no iOS
-          // (a faixa "toca" em silêncio durante a suspensão). Remove, para o próximo
-          // setBgm recriá-lo já com o áudio rodando.
-          this._purgeBgmNodes();
-          this.bgmKind = null;
-        }
+        if (!this._ensureCtx()) return;
+        if (this.ctx.state !== 'suspended') return;
+        // Ctx suspenso (pré-gesto ou 1ª tentativa rejeitada): remove faixas criadas
+        // em silêncio e re-dispara a música quando o resume resolver — a recriação
+        // roda com o AudioContext JÁ tocando (nó criado suspenso não reproduz no iOS).
+        this._purgeBgmNodes();
+        this._bgmNode = null;
+        try {
+          const p = this.ctx.resume();
+          if (p && typeof p.then === 'function') {
+            p.then(() => {
+              if (this.bgmKind && !this._bgmNode) this.setBgm(this.bgmKind);
+            }).catch(() => {});
+          }
+        } catch (err) {}
       }
 
       // kind: 'start' (toca UMA vez) | 'game' (loop) | null (para a música com fade)
@@ -448,6 +451,8 @@
             return;
           }
           if (!this.ctx || this.bgmKind !== kind) return; // mudou de ideia no meio
+          if (this.ctx.state === 'suspended') return; // aguarda o resume; o unlock re-dispara o setBgm
+          if (this._bgmNode && kind === this.bgmKind) return; // já recriado (evita faixa duplicada)
           const now = this.ctx.currentTime;
           const src = this.ctx.createBufferSource();
           const g = this.ctx.createGain();
