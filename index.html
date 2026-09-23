@@ -35,6 +35,9 @@
 <body>
 
   <div id="game-wrapper">
+    <!-- Cegueira total do Espectro no pico do pulso (cobre também o HUD, que é DOM) -->
+    <div id="haunt-blind" style="position: fixed; inset: 0; background: #060212; z-index: 99999; display: none; pointer-events: none;"></div>
+
     <!-- Canvas for 60fps rendering -->
     <canvas id="game-canvas"></canvas>
 
@@ -48,6 +51,9 @@
         <div class="hud-chip compact time">
           <span class="hud-label">⏱</span>
           <span class="hud-value" id="hud-time">0:00</span>
+        </div>
+        <div class="hud-chip compact party" title="Partido nº 14">
+          <span class="hud-value" id="hud-party">#14</span>
         </div>
       </div>
 
@@ -76,6 +82,7 @@
           <span class="hud-label" style="color:#ffd400;">Patente:</span>
           <span class="hud-value" id="hud-rank" style="font-size:0.72rem; color:#fff;">Recruta</span>
           <div class="rank-progress" id="hud-rank-track"><div class="rank-progress-fill" id="hud-rank-fill"></div></div>
+          <span class="rank-target" id="hud-rank-target"><span class="rank-target-label" id="hud-rank-target-label">VOTOS</span><span class="rank-target-num" id="hud-rank-target-num">14.014</span></span>
         </div>
         <div class="hud-badge mult" id="hud-mult" style="display:none;">x1</div>
         <div class="hud-badge perk" id="hud-perk-active" style="display:none;">INVENCÍVEL</div>
@@ -98,11 +105,12 @@
       <!-- Arte Conceitual Oficial com Glow Dourado Imperial -->
       <div class="start-art-container">
         <div class="start-art-glow"></div>
+        <div class="start-art-badge">#14</div>
         <img class="start-art-img" 
              src="./assets/capa-renan.png" 
              alt="pra cima deles, renan! — Arte Conceitual Oficial"
              onerror="this.style.display='none'; const fb = document.getElementById('start-art-fallback'); if(fb) fb.style.display='flex';">
-        <div id="start-art-fallback" style="display:none; position:relative; z-index:2; height:180px; width:100%; border:1.5px solid rgba(255,212,0,0.4); border-radius:14px; background:#0b1528; align-items:center; justify-content:center; flex-direction:column; padding:16px;">
+        <div id="start-art-fallback" style="display:none; position:relative; z-index:2; width:100%; aspect-ratio:1/1; border:1.5px solid rgba(255,212,0,0.4); border-radius:14px; background:#0b1528; align-items:center; justify-content:center; flex-direction:column; padding:16px; box-sizing:border-box;">
           <div style="color:#ffd400; font-size:1.4rem; font-weight:900; letter-spacing:1px;">pra cima deles,<br>renan!</div>
           <div style="color:#9ab0d3; font-size:0.85rem; margin-top:6px;">Debate Sem Fujões</div>
         </div>
@@ -164,6 +172,15 @@
         <div id="go-conv-note" style="display:none; font-size:0.78rem; color:#ffd400; text-align:center; margin:6px 0 4px;"></div>
       </div>
 
+      <!-- Apoio: botão em destaque, logo abaixo da pontuação -->
+      <button class="btn-support" id="btn-support" type="button">
+        <span class="btn-support-ico">❤️</span>
+        APOIE A MISSÃO
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6"></path>
+        </svg>
+      </button>
+
       <!-- Ranking Comunitário da Missão -->
       <div class="leaderboard-card">
         <div class="leaderboard-head">🏆 RANKING DA COMUNIDADE</div>
@@ -206,10 +223,6 @@
         </button>
 
         <button class="btn-home" id="btn-home" type="button">← INÍCIO</button>
-
-        <a href="#" class="official-link" onclick="event.preventDefault(); alert('Apoie pelos canais oficiais: Missão do Livro Amarelo.');">
-          APOIE PELOS CANAIS OFICIAIS
-        </a>
       </div>
 
       <!-- Menu de Compartilhamento removido: o botão "Compartilhar" agora abre o
@@ -232,6 +245,52 @@
         <div class="glossary-hint">↓ role para baixo para ver todos ↓</div>
         <div class="glossary-track" id="glossary-track"></div>
         <div class="modal-foot">Pontuação lúdica, sem premiação. Votos alimentam o ranking da comunidade.</div>
+      </div>
+    </div>
+
+    <!-- Apoio: box com os canais (links são placeholders — preencher depois) -->
+    <div class="modal-backdrop hidden" id="apoio-modal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 class="modal-title">❤️ APOIE A MISSÃO</h3>
+          <button class="modal-close" id="apoio-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="apoio-hint">Escolha como ajudar:</div>
+        <div class="apoio-links">
+          <a class="apoio-link" href="#" data-apoio="candidatos" target="_blank" rel="noopener">
+            <span class="apoio-emoji">🗳️</span>
+            <span class="apoio-info">
+              <span class="apoio-title">Candidatos da Missão</span>
+              <span class="apoio-sub">Conheça os candidatos apoiados — link em breve</span>
+            </span>
+            <span class="apoio-go">→</span>
+          </a>
+          <a class="apoio-link" href="#" data-apoio="doacao-renan" target="_blank" rel="noopener">
+            <span class="apoio-emoji">📕</span>
+            <span class="apoio-info">
+              <span class="apoio-title">Doação oficial — Renan Santos</span>
+              <span class="apoio-sub">Site oficial de doações do Renan — link em breve</span>
+            </span>
+            <span class="apoio-go">→</span>
+          </a>
+          <a class="apoio-link" href="#" data-apoio="doacao-autor" target="_blank" rel="noopener">
+            <span class="apoio-emoji">☕</span>
+            <span class="apoio-info">
+              <span class="apoio-title">Doação para o autor</span>
+              <span class="apoio-sub">Apoie Samuel Salomão (@ssalomao14) — link em breve</span>
+            </span>
+            <span class="apoio-go">→</span>
+          </a>
+          <a class="apoio-link" href="#" data-apoio="colinha" target="_blank" rel="noopener">
+            <span class="apoio-emoji">📋</span>
+            <span class="apoio-info">
+              <span class="apoio-title">Colinha de candidatos</span>
+              <span class="apoio-sub">Minha cola pronta na hora de votar — link em breve</span>
+            </span>
+            <span class="apoio-go">→</span>
+          </a>
+        </div>
+        <div class="modal-foot">Apoiador independente, divulgado de forma orgânica.</div>
       </div>
     </div>
 

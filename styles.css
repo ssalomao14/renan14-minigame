@@ -250,7 +250,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       font-weight: 800;
       letter-spacing: 0.5px;
       color: #ffd400;
-      text-shadow: 0 0 14px rgba(255, 212, 0, 0.35);
+      text-shadow: 0 1px 6px rgba(255, 212, 0, 0.25);
     }
 
     /* Card de abertura após apertar JOGAR */
@@ -261,8 +261,8 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       text-align: center;
       border-radius: 18px;
       background: linear-gradient(160deg, #0d193a 0%, #081226 100%);
-      border: 1.5px solid rgba(255, 212, 0, 0.65);
-      box-shadow: 0 0 34px rgba(255, 212, 0, 0.45), inset 0 0 34px rgba(255, 212, 0, 0.08);
+      border: 1px solid rgba(255, 212, 0, 0.35);
+      box-shadow: 0 0 18px rgba(255, 212, 0, 0.22), inset 0 0 20px rgba(255, 212, 0, 0.05);
       animation: splashPop 0.42s ease-out;
     }
 
@@ -299,11 +299,11 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       100% { transform: scale(1); opacity: 1; }
     }
 
-    /* Arte Conceitual Oficial do Renan */
+    /* Arte Conceitual Oficial do Renan (quadrado alinhado ao botão JOGAR) */
     .start-art-container {
       position: relative;
       width: 100%;
-      max-width: 420px;
+      max-width: 340px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -313,8 +313,8 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     .start-art-glow {
       position: absolute;
       inset: -12px;
-      background: radial-gradient(ellipse at 50% 50%, rgba(255, 212, 0, 0.32) 0%, rgba(15, 31, 61, 0.5) 55%, transparent 75%);
-      filter: blur(14px);
+      background: radial-gradient(ellipse at 50% 50%, rgba(255, 212, 0, 0.18) 0%, rgba(15, 31, 61, 0.5) 55%, transparent 75%);
+      filter: blur(9px);
       pointer-events: none;
       z-index: 1;
     }
@@ -324,15 +324,32 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       z-index: 2;
       width: 100%;
       max-width: 100%;
-      max-height: 46vh;
-      aspect-ratio: 4 / 5;
+      max-height: 60vh;
+      aspect-ratio: 1 / 1;
       object-fit: cover;
       object-position: center 30%;
       border-radius: 14px;
-      border: 1.5px solid rgba(255, 212, 0, 0.4);
-      box-shadow: 0 0 28px rgba(255, 212, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 212, 0, 0.28);
+      box-shadow: 0 0 16px rgba(255, 212, 0, 0.2), 0 10px 30px rgba(0, 0, 0, 0.7);
       background-color: #0b1528;
       display: block;
+    }
+
+    /* Selo #14 (nº do partido) sobre a arte conceitual da tela inicial */
+    .start-art-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 3;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #ffd400;
+      color: #0b1528;
+      font-size: 0.85rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55), 0 0 8px rgba(255, 212, 0, 0.3);
+      pointer-events: none;
     }
 
     .start-footer-links {
@@ -360,24 +377,25 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       max-width: 340px;
       padding: 18px 24px;
       font-size: 1.35rem;
-      font-weight: 900;
+      font-weight: 800;
       letter-spacing: 1px;
       color: #0b1528;
       background: #ffd400;
       border: none;
-      border-radius: 14px;
-      box-shadow: 0 6px 0 #c7a400, 0 12px 24px rgba(255, 212, 0, 0.3);
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(255, 212, 0, 0.2), 0 8px 22px rgba(0, 0, 0, 0.4);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      transition: transform 0.1s, box-shadow 0.1s;
+      transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
     }
 
     .btn-play-large:active {
-      transform: translateY(4px);
-      box-shadow: 0 2px 0 #c7a400, 0 4px 12px rgba(255, 212, 0, 0.2);
+      transform: translateY(2px);
+      box-shadow: 0 2px 8px rgba(255, 212, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.3);
+      filter: brightness(0.96);
     }
 
     .start-tip {
@@ -389,8 +407,9 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     .intro-skip-opt {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      margin-top: 14px;
+      margin: 14px auto 0;
       padding: 8px 12px;
       border: 1px solid rgba(255, 212, 0, 0.35);
       border-radius: 10px;
@@ -399,6 +418,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       user-select: none;
       font-size: 0.74rem;
       color: #c6d3ea;
+      width: fit-content;
       max-width: 300px;
     }
     .intro-skip-opt input {
@@ -461,9 +481,10 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       overflow: hidden;
     }
 
-    .hud-chip {
-      background: rgba(11, 21, 40, 0.92);
-      border: 1.5px solid rgba(255, 212, 0, 0.45);
+.hud-chip {
+      position: relative;
+      background: rgba(11, 18, 34, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.10);
       border-radius: 10px;
       padding: 5px 10px;
       display: flex;
@@ -472,8 +493,8 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       gap: 6px;
       white-space: nowrap;
       min-width: 54px;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
 
     .hud-chip.compact {
@@ -488,14 +509,14 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
   justify-content: center;
   min-width: 0;
   gap: 8px;
-  border-color: rgba(255, 212, 0, 0.7);
-  background: rgba(11, 21, 40, 0.96);
+  border-color: rgba(255, 212, 0, 0.32);
+  background: rgba(11, 18, 34, 0.78);
 }
 
     .hud-chip.votes .hud-value {
       font-size: 1.05rem;
-      color: var(--accent);
-      font-weight: 900;
+      color: #ffe08a;
+      font-weight: 800;
       letter-spacing: 0.5px;
     }
 
@@ -504,8 +525,8 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     }
 
     .hud-chip.time {
-      border-color: rgba(255, 255, 255, 0.28);
-      background: rgba(11, 21, 40, 0.92);
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(11, 18, 34, 0.72);
       gap: 4px;
       font-variant-numeric: tabular-nums;
     }
@@ -517,34 +538,70 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       text-align: center;
     }
 
+    /* Badge do partido nº 14: discreto, vidro fosco com selo dourado soft */
+    .hud-chip.party {
+      border-color: rgba(255, 212, 0, 0.45);
+      background: rgba(255, 212, 0, 0.12);
+      color: #ffd400;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      font-size: 0.8rem;
+      min-width: 40px;
+      padding: 4px 8px;
+    }
+
+    .hud-chip.party .hud-value {
+      color: #ffd400;
+    }
+
     .hud-chip.lives {
       min-width: 76px;
     }
 
     .hud-chip.lives #hud-lives {
-      color: #ff5e7a;
+      color: #ff8a9b;
       font-size: 1rem;
       white-space: nowrap;
       letter-spacing: 2px;
       line-height: 1;
       display: inline-block;
-      text-shadow: 0 0 10px rgba(255, 94, 122, 0.55), 0 1px 3px rgba(0,0,0,0.9);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
     }
 
     .hud-label {
       font-size: 0.72rem;
       color: #a5bada;
       text-transform: uppercase;
-      font-weight: 800;
+      font-weight: 700;
       letter-spacing: 0.6px;
     }
 
     .hud-value {
       font-size: 1.05rem;
-      font-weight: 900;
+      font-weight: 800;
       color: #ffd400;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-      font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+
+    /* Ticker de "soma": +XXXX flutua e some ao lado do contador que mudou */
+    .hud-delta {
+      position: absolute;
+      top: -9px;
+      right: 4px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.75);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px) scale(0.9);
+      transition: opacity 0.22s ease-out, transform 0.22s ease-out;
+      line-height: 1;
+      z-index: 3;
+    }
+.hud-delta.on {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
 
     .hud-badge {
@@ -561,7 +618,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     }
 
     /* Barra de progresso da patente (fixa na base do chip) */
-    .rank-chip.rank-chip { padding-bottom: 7px; }
+    .rank-chip.rank-chip { padding-bottom: 7px; flex: 1 1 auto; min-width: 0; }
     .rank-progress {
       position: absolute;
       left: 0;
@@ -574,14 +631,47 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       height: 100%;
       width: 0%;
       background: #ffd400;
-      box-shadow: 0 0 6px rgba(255, 212, 0, 0.7);
+      box-shadow: 0 0 4px rgba(255, 212, 0, 0.5);
       transition: width 0.25s linear;
+    }
+    /* Marcador de meta (votos da próxima patente) no fim da barra: META em cima, número embaixo */
+    .rank-target {
+      position: absolute;
+      right: 6px;
+      bottom: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      line-height: 1;
+      text-transform: uppercase;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .rank-target-label {
+      font-size: 0.48rem;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      color: #9ab0d3;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+      opacity: 0.9;
+    }
+    .rank-target-num {
+      font-size: 0.8rem;
+      font-weight: 900;
+      color: #ffd400;
+      letter-spacing: 0.3px;
+      text-shadow: 0 0 4px rgba(255, 212, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.9);
+    }
+    .rank-target-num.max-shrink {
+      font-size: 0.56rem;
+      letter-spacing: 0.5px;
     }
 
     .hud-badge.mult {
       background: #ffd400;
       color: #0b1528;
-      box-shadow: 0 0 10px rgba(255, 212, 0, 0.5);
+      box-shadow: 0 0 6px rgba(255, 212, 0, 0.4);
     }
 
     .hud-badge.perk {
@@ -694,7 +784,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     /* Game Over Modal / Cards */
     .gameover-card {
       background: #111d33;
-      border: 1px solid rgba(255, 212, 0, 0.3);
+      border: 1px solid rgba(255, 212, 0, 0.22);
       border-radius: 16px;
       padding: 20px;
       width: 100%;
@@ -714,9 +804,9 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     }
 
     .rank-highlight-box.gold-tier {
-      border-color: #ffd400;
-      background: linear-gradient(135deg, rgba(255, 212, 0, 0.18) 0%, rgba(15, 31, 61, 0.95) 100%);
-      box-shadow: 0 0 18px rgba(255, 212, 0, 0.28);
+      border-color: rgba(255, 212, 0, 0.75);
+      background: linear-gradient(135deg, rgba(255, 212, 0, 0.14) 0%, rgba(15, 31, 61, 0.95) 100%);
+      box-shadow: 0 0 10px rgba(255, 212, 0, 0.18);
     }
 
     .rank-tag {
@@ -738,7 +828,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     .rank-title.gold-tier {
       font-size: 1.35rem;
       color: #ffd400;
-      text-shadow: 0 0 12px rgba(255, 212, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.8);
+      text-shadow: 0 0 8px rgba(255, 212, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.7);
     }
 
     .stats-grid {
@@ -954,13 +1044,16 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       margin-bottom: 3px;
     }
     #overlay-gameover .leaderboard-list {
-      max-height: 72px;
+      max-height: 118px;
       gap: 2px;
     }
     #overlay-gameover .lb-row {
       padding: 2px 6px;
       font-size: 0.68rem;
       gap: 6px;
+    }
+    #overlay-gameover .lb-patente {
+      font-size: 0.55rem;
     }
     #overlay-gameover .lb-medal {
       font-size: 0.8rem;
@@ -986,6 +1079,12 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     }
     #overlay-gameover .actions-stack {
       gap: 5px;
+    }
+    #overlay-gameover .btn-support {
+      max-width: 100%;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      margin: 7px auto 2px;
     }
     #overlay-gameover .btn-secondary-action {
       padding: 7px 12px;
@@ -1025,7 +1124,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
         padding: 4px;
       }
       #overlay-gameover .leaderboard-list {
-        max-height: 58px;
+        max-height: 104px;
       }
       #overlay-gameover .actions-stack {
         gap: 4px;
@@ -1057,7 +1156,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
 
     .modal {
       background: #0e1a30;
-      border: 1px solid rgba(255, 212, 0, 0.4);
+      border: 1px solid rgba(255, 212, 0, 0.3);
       border-radius: 16px;
       width: 100%;
       max-width: 360px;
@@ -1133,10 +1232,10 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     .glossary-card {
       width: 100%;
       background: #122140;
-      border: 1px solid rgba(255, 212, 0, 0.28);
+      border: 1px solid rgba(255, 212, 0, 0.2);
       border-radius: 14px;
       padding: 8px;
-      box-shadow: 0 8px 22px rgba(0,0,0,0.45);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.35);
     }
 
     .glossary-sprite-area {
@@ -1210,16 +1309,117 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       z-index: 10;
     }
 
+    /* --- APOIE A MISSÃO (botão + box de links) --- */
+    .btn-support {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 330px;
+      margin: 10px auto 4px;
+      padding: 13px 16px;
+      border-radius: 14px;
+      border: 2px solid #ffd400;
+      background: linear-gradient(135deg, rgba(255, 212, 0, 0.2), rgba(255, 150, 0, 0.1));
+      color: #ffd400;
+      font-weight: 900;
+      font-size: 1.02rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 0 16px rgba(255, 212, 0, 0.28), 0 8px 20px rgba(0, 0, 0, 0.4);
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+
+    .btn-support:hover {
+      box-shadow: 0 0 22px rgba(255, 212, 0, 0.45), 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .btn-support:active {
+      transform: scale(0.98);
+    }
+
+    .btn-support-ico {
+      font-size: 1.15rem;
+    }
+
+    .apoio-hint {
+      text-align: center;
+      color: #9fb2d1;
+      font-size: 0.74rem;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .apoio-links {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .apoio-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+    }
+
+    .apoio-link:hover {
+      border-color: rgba(255, 212, 0, 0.65);
+      background: rgba(255, 212, 0, 0.1);
+    }
+
+    .apoio-link:active {
+      transform: scale(0.99);
+    }
+
+    .apoio-emoji {
+      font-size: 1.4rem;
+      flex: 0 0 auto;
+    }
+
+    .apoio-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .apoio-title {
+      color: #fff;
+      font-weight: 900;
+      font-size: 0.9rem;
+    }
+
+    .apoio-sub {
+      color: #7d94bd;
+      font-size: 0.68rem;
+      margin-top: 2px;
+    }
+
+    .apoio-go {
+      color: #ffd400;
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+
     /* --- RANKING COMUNITÁRIO --- */
     .leaderboard-card {
       width: 100%;
       max-width: 330px;
       margin: 0 auto 10px;
       background: rgba(11, 21, 40, 0.96);
-      border: 1px solid rgba(255, 212, 0, 0.45);
+      border: 1px solid rgba(255, 212, 0, 0.28);
       border-radius: 14px;
       padding: 8px 10px 10px;
-      box-shadow: 0 14px 38px rgba(0, 0, 0, 0.55);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
       animation: modal-pop 0.22s ease-out;
     }
 
@@ -1238,8 +1438,10 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       display: flex;
       flex-direction: column;
       gap: 3px;
-      max-height: 132px;
+      /* Expandido: os 5 primeiros aparecem sem scroll; o resto segue abaixo com scroll */
+      max-height: 168px;
       overflow-y: auto;
+      scrollbar-width: thin;
       padding-right: 2px;
     }
 
@@ -1275,11 +1477,30 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
 
     .lb-nick {
       flex: 1;
+      min-width: 0;
       color: #fff;
       font-weight: 800;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .lb-patente {
+      flex: 0 1 auto;
+      min-width: 0;
+      color: #a9b7d0;
+      font-size: 0.6rem;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .lb-patente.mine {
+      color: #ffd400;
     }
 
     .lb-votes {
@@ -1294,6 +1515,15 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       color: #7d94bd;
       font-size: 0.78rem;
       padding: 10px 0;
+    }
+
+    .lb-empty-row {
+      background: transparent;
+      opacity: 0.55;
+    }
+
+    .lb-dim {
+      color: #5b6d8f;
     }
 
     .leaderboard-register {
