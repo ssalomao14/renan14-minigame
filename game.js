@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.7';
+    const GAME_VERSION = '0.1.8';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -252,19 +252,77 @@
       playGameOverSting() {
         if (!this.enabled || !this.ctx) return;
         const now = this.ctx.currentTime;
-        [392, 311, 262, 196].forEach((freq, i) => {
+        // GRITO DE GUERRA: não denota derrota, é um grito de batalha.
+        // Tambor -> "U-RÁAAA!" ascendente em 2 vozes -> chant "RA! RA! RA!"
+        // -> acorde de batalha (quinta). Camadas simultâneas = som "gordo", nada monodimensional.
+        [0, 0.78].forEach((off) => {
+          const t = now + off;
           const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
+          const g = this.ctx.createGain();
           osc.type = 'sine';
-          const t = now + i * 0.16;
-          osc.frequency.setValueAtTime(freq, t);
-          gain.gain.setValueAtTime(0.22, t);
-          gain.gain.linearRampToValueAtTime(0.01, t + 0.22);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
+          osc.frequency.setValueAtTime(95, t);
+          osc.frequency.exponentialRampToValueAtTime(48, t + 0.12);
+          g.gain.setValueAtTime(0.22, t);
+          g.gain.linearRampToValueAtTime(0.01, t + 0.13);
+          osc.connect(g);
+          g.connect(this.ctx.destination);
           osc.start(t);
-          osc.stop(t + 0.22);
+          osc.stop(t + 0.14);
         });
+
+        // "U-RÁAAA!": glide ascendente com terça acima (2 vozes)
+        const ura = this.ctx.createOscillator();
+        const ura2 = this.ctx.createOscillator();
+        const ug = this.ctx.createGain();
+        ura.type = 'sawtooth';
+        ura2.type = 'sawtooth';
+        ura.frequency.setValueAtTime(240, now + 0.1);
+        ura.frequency.exponentialRampToValueAtTime(620, now + 0.42);
+        ura2.frequency.setValueAtTime(360, now + 0.1);
+        ura2.frequency.exponentialRampToValueAtTime(930, now + 0.42);
+        ug.gain.setValueAtTime(0.035, now + 0.08);
+        ug.gain.linearRampToValueAtTime(0.15, now + 0.24);
+        ug.gain.linearRampToValueAtTime(0.01, now + 0.44);
+        ura.connect(ug);
+        ura2.connect(ug);
+        ug.connect(this.ctx.destination);
+        ura.start(now);
+        ura.stop(now + 0.45);
+        ura2.start(now);
+        ura2.stop(now + 0.45);
+
+        // "RA! RA! RA!": chant curto e forte
+        [392, 440, 523].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = 'square';
+          const t = now + 0.46 + i * 0.11;
+          osc.frequency.setValueAtTime(freq, t);
+          g.gain.setValueAtTime(0.16, t);
+          g.gain.linearRampToValueAtTime(0.005, t + 0.09);
+          osc.connect(g);
+          g.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.1);
+        });
+
+        // Acorde de batalha resolvido (C3+G3) fechando o grito
+        const chord = this.ctx.createOscillator();
+        const chord2 = this.ctx.createOscillator();
+        const cg = this.ctx.createGain();
+        chord.type = 'sawtooth';
+        chord2.type = 'sawtooth';
+        chord.frequency.setValueAtTime(196, now + 0.8);
+        chord2.frequency.setValueAtTime(294, now + 0.8);
+        cg.gain.setValueAtTime(0.15, now + 0.8);
+        cg.gain.linearRampToValueAtTime(0.004, now + 1.05);
+        chord.connect(cg);
+        chord2.connect(cg);
+        cg.connect(this.ctx.destination);
+        chord.start(now + 0.8);
+        chord.stop(now + 1.06);
+        chord2.start(now + 0.8);
+        chord2.stop(now + 1.06);
       }
 
       // Whoosh curto do Espectro ao ficar sólido (adverte o jogador)
@@ -301,6 +359,13 @@
         this._pending = {};   // chaves carregando (lista de callbacks)
         this._bgmNode = null;
         this._bgmGain = null;
+        this._nodes = new Set(); // todos os buffer sources ativos, p/ nunca deixar música órfã
+      }
+
+      // Para TUDO que ainda esteja tocando (inclusive nós que escaparam do _bgmNode)
+      _purgeBgmNodes() {
+        this._nodes.forEach((n) => { try { n.stop(); } catch (err) {} });
+        this._nodes.clear();
       }
 
       _ensureCtx() {
@@ -342,7 +407,7 @@
         if (this._ensureCtx() && this.ctx.state === 'suspended') this.ctx.resume();
       }
 
-      // kind: 'start' (toca UMA vez) | 'game'/'imperial' (loop) | null (para a música com fade)
+      // kind: 'start' (toca UMA vez) | 'game' (loop) | null (para a música com fade)
       setBgm(kind) {
         const prevNode = this._bgmNode;
         const prevGain = this._bgmGain;
@@ -356,38 +421,45 @@
         this._bgmGain = null;
 
         if (!this.enabled || !this.unlocked || !kind || !this._ensureCtx()) {
-          // Mutado, bloqueado ou parando: elimina a faixa atual imediatamente
-          if (prevNode && prevGain && this.ctx) {
-            try { prevGain.gain.cancelScheduledValues(this.ctx.currentTime); } catch (err) {}
-            try { prevNode.stop(); } catch (err) {}
-          }
+          // Mutado, bloqueado ou parando: silencia TUDO. O purge garante que
+          // nenhuma faixa órfã (ex.: falha ao carregar qualquer arquivo) continue
+          // tocando depois da morte ou do mudo.
+          this._purgeBgmNodes();
           return;
         }
 
         this._loadBuf(kind, (d) => {
-          if (!d || !this.ctx || this.bgmKind !== kind) return; // mudou de ideia no meio
+          if (!d) {
+            // Arquivo ausente/indecodificável (404): a faixa ANTERIOR não pode
+            // continuar tocando sem ser dona do _bgmNode — ela ficaria eterna.
+            this._purgeBgmNodes();
+            return;
+          }
+          if (!this.ctx || this.bgmKind !== kind) return; // mudou de ideia no meio
           const now = this.ctx.currentTime;
           const src = this.ctx.createBufferSource();
           const g = this.ctx.createGain();
           src.buffer = d;
           src.loop = kind !== 'start'; // introdução da tela inicial toca uma única vez
-          // Níveis por trilha: game/imperial ficam em background, intro um pouco à frente
+          // Níveis por trilha: game fica em background, intro um pouco à frente
           const level = (kind === 'start') ? 0.38 : 0.26;
           g.gain.setValueAtTime(0.0001, now);
           g.gain.exponentialRampToValueAtTime(level, now + 0.9);
+          src.onended = () => {
+            try { g.disconnect(); } catch (err) {}
+            this._nodes.delete(src);
+            if (this._bgmNode === src) { this._bgmNode = null; this._bgmGain = null; }
+          };
           if (!src.loop) {
             // Fade-out no final da introdução (evita corte seco)
             const end = d.duration || 30;
             g.gain.setValueAtTime(level, now + Math.max(1.2, end - 1.0));
             g.gain.exponentialRampToValueAtTime(0.0001, now + end + 0.02);
-            src.onended = () => {
-              try { g.disconnect(); } catch (err) {}
-              if (this._bgmNode === src) { this._bgmNode = null; this._bgmGain = null; }
-            };
           }
           src.connect(g);
           g.connect(this.ctx.destination);
           src.start();
+          this._nodes.add(src);
           this._bgmNode = src;
           this._bgmGain = g;
 
@@ -450,14 +522,16 @@
     const canvas = document.getElementById('game-canvas');
     let ctx = canvas.getContext('2d');
 
-    // Prévia de pixelização global (mode de preview — NÃO afeta o jogo normal):
-    // acesse a página com ?pixel=1 (ou ?pixel=N para fator de pixelação custom).
-    const PIXEL_MODE = /[?&]pixel=/.test(window.location.search);
-    // Fator de subamostragem do canvas na prévia: 1 = resolução cheia (só fontes pixel);
+    // ESTILO PADRÃO do jogo é o modo pixel (fonte Pixelify em todo o DOM + proxy de
+    // ctx.font no canvas). ?pixel=0 desliga (comparação/fallback sem pixelização);
+    // ?pixel=2..8 adiciona subamostragem do canvas inteiro além das fontes.
+    const PIXEL_PARAM = (window.location.search.match(/[?&]pixel=(\d+)/) || [])[1];
+    const PIXEL_MODE = !(PIXEL_PARAM === '0');
+    // Fator de subamostragem do canvas: 1 (padrão) = resolução cheia, só fontes pixel;
     // 2/3 = pixelização do canvas inteiro. Padrão 1 (legibilidade máxima).
-    const PIXEL_RATIO = Math.max(1, Math.min(8, parseInt((window.location.search.match(/[?&]pixel=(\d+)/) || [])[1] || '1', 10)));
+    const PIXEL_RATIO = Math.max(1, Math.min(8, parseInt(PIXEL_PARAM || '1', 10)));
 
-    // Aparência pixelada dos elementos DOM (só na prévia ?pixel=N)
+    // Aparência pixelada dos elementos DOM (sempre ligada no estilo padrão)
     if (PIXEL_MODE) {
       document.body.classList.add('pixel');
       const st = document.createElement('style');
@@ -517,6 +591,8 @@
 
     let gameState = STATE.MENU;
     let highscore = parseInt(localStorage.getItem('renan_mission_best') || '0', 10);
+    // Animação de entrada da tela inicial: quadro cresce + fade de texto/botão.
+    let menuIntroDone = false; // libera toque/tecla para iniciar o jogo no menu
     let lastFinalScore = 0;
     let lastGameTime = 0;
     let lastVotes = 0;
@@ -709,8 +785,8 @@
     }
 
     // Card de apresentação desenhado no meio do canvas (fade in/out, ênfase editorial)
-    // Layout: tag -> emoji -> nome -> piada -> checkbox -> countdown.
-    // A tag vermelha fica AFORA do alcance do emoji (nada de sobreposição).
+    // Layout: tag -> miniatura do sprite -> nome -> piada -> checkbox -> countdown.
+    // A tag vermelha fica AFORA do alcance da miniatura (nada de sobreposição).
     const INTRO_BOX_RECT = { x: V_WIDTH / 2 - 190, y: 238, w: 380, h: 26 };
     const INTRO_SKIP_RECT = { x: V_WIDTH / 2 + 55, y: 264, w: 90, h: 22 };
     function drawIntroCard() {
@@ -723,7 +799,7 @@
       const cw = 330;
       const ch = 196;
       const cy = 222;
-      const tagText = 'INTRODUÇÃO DO PERSONAGEM';
+      const tagText = 'NOVO INIMIGO';
       const pulse = 1 + Math.sin(performance.now() * 0.006) * 0.015;
 
       ctx.save();
@@ -764,12 +840,27 @@
       ctx.fillStyle = '#081120';
       ctx.fillText(tagText, cx, cy - ch / 2 + 17);
 
-      // Emoji grande (abaixo da tag, sem atropelá-la)
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-      ctx.shadowBlur = 12;
-      ctx.font = '900 40px sans-serif';
-      ctx.fillText(card.emoji, cx, cy - 46);
-      ctx.shadowBlur = 0;
+      // Miniatura do sprite do inimigo (PNG real) no lugar do emoji
+      const thumbKey = INTRO_THUMB_SPRITES[card.typeKey];
+      const thumbSpr = thumbKey ? loadedSprites[thumbKey] : null;
+      if (thumbSpr && thumbSpr.width && thumbSpr.height) {
+        const TW = 82;
+        const TH = 76;
+        const sc = Math.min(TW / thumbSpr.width, TH / thumbSpr.height);
+        const dw = thumbSpr.width * sc;
+        const dh = thumbSpr.height * sc;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 14;
+        ctx.drawImage(thumbSpr, cx - dw / 2, cy - 44 - dh / 2, dw, dh);
+        ctx.shadowBlur = 0;
+      } else {
+        // Sem sprite (raro): mantém o emoji como fallback
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 12;
+        ctx.font = '900 40px sans-serif';
+        ctx.fillText(card.emoji, cx, cy - 46);
+        ctx.shadowBlur = 0;
+      }
 
       // Nome do personagem
       ctx.font = '800 22px "Arial Black", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -902,7 +993,7 @@
     let oncaRidingTimer = 0;        // Onça Pintada invencível + atropelamento
     // --- EVENTO OVERDRIVE UNIFICADO (onça pintada + modo imperial) ---
     // Onça e Imperial compartilham o MESMO evento de apresentação para o futuro
-    // (música imperial, textos, efeitos de tela e outras variações entram aqui).
+    // (textos, efeitos de tela e outras variações entram aqui; a música é sempre game.mp3).
     let overdriveKind = null;             // 'onca' | 'imperial' | null
     let overdriveHashtagUsedThisRun = false; // hashtag só 1x por run
     let hasShield = false;          // Broche R14 absorve 1 colisão
@@ -1605,6 +1696,7 @@
       }
 
       if (gameState === STATE.MENU) {
+        if (!menuIntroDone) return; // animação de entrada ainda em andamento
         requestStartGame();
         return;
       }
@@ -1869,6 +1961,7 @@
 
     // Balão de fala persistente (~55% do ciclo visível) e legível acima do inimigo.
     function entityBubble(e, name, quip, period, persist) {
+      if (activeCard) return; // durante a introdução o card já apresenta o personagem
       if (e.neutralized || e.x > V_WIDTH + 60 || e.x + e.w < -40) return;
       const p = period || e.bubblePeriod || 2.4;
       if (!persist && e.bubbleTimer <= p * 0.45) return;
@@ -2055,6 +2148,7 @@
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 10) * 2);
           entityBubble(this, 'JORNALISTA', 'E O FEMINICÍDIO?');
+          
         }
         endEntityFrame();
       }
@@ -2118,6 +2212,7 @@
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 11) * 2);
           entityBubble(this, 'EX-MBL', 'DISCULPA, DISCULPA BOLSONARO!');
+          
         }
         endEntityFrame();
       }
@@ -2184,6 +2279,7 @@
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 9) * 2);
           entityBubble(this, 'MC', 'ÃHN!? ESSE É ARGILOSO!');
+          
         }
         endEntityFrame();
       }
@@ -2248,6 +2344,7 @@
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 11) * 2);
           entityBubble(this, 'LADRÃO', 'QUERO CERVEJINHA!!');
+          
         }
         endEntityFrame();
       }
@@ -2320,6 +2417,7 @@
         if (!this.neutralized) {
           drawWarningIcon(this.x + this.w / 2, this.y - 10 + Math.sin((this.age || 0) * 12) * 2);
           entityBubble(this, 'MILITANTE', this.releaseHold > 0 ? 'SOLTOU! FUGIU!' : 'SOLTA ELE!');
+          
         }
         endEntityFrame();
       }
@@ -2960,6 +3058,22 @@ freezeTimer = 0;
       return Math.round(base * getActiveMultiplier());
     }
 
+    // Neutraliza um obstáculo garantindo que ele SEMPRE saia da tela.
+    // Um inimigo neutralizado sem velocidade de fuga congela em x e nunca é
+    // removido (a remoção exige x < -120) — fica preso para sempre, engorda
+    // obstacles.length e pode até bloquear a zona de spawn (~x 470), o que
+    // SATURA o teto de entidades ativas e para os spawns (sobra só powerup).
+    // A Jornalista é a única que anda via exitVx/exitVy quando neutralizada;
+    // para o restante a velocidade extra é inerte (eles rolam para a esquerda
+    // no próprio update).
+    function neutralizeObstacle(obs) {
+      if (obs.neutralized) return;
+      if (typeof obs.neutralize === 'function') { obs.neutralize(); return; }
+      obs.neutralized = true;
+      obs.exitVx = -160;
+      obs.exitVy = -120;
+    }
+
     function updateWorld(dt) {
       // Card de apresentação de personagem: PAUSA TOTAL.
       // Enquanto o card está visível o mundo (entidades, renan, cronômetros e spawns)
@@ -3068,8 +3182,12 @@ activeBanner = null;
       spawnCooldown -= dt;
       perkCooldown -= dt;
 
-      // TETO DE ENTIDADES ATIVAS: máx 2 nas primeiras fases (<40s), máx 4 após 40s; teto global 6
-      const activeEntityCount = obstacles.length + pulpits.length;
+      // TETO DE ENTIDADES ATIVAS: máx 2 nas primeiras fases (<40s), máx 4 após 40s; teto global 6.
+      // `neutralized`/`cleared` saem da conta: eles não ameaçam mais o jogador e
+      // devem apenas rolar para fora sem prender o spawn (um congelado na tela
+      // saturava o teto para sempre e matava os spawns).
+      const activeEntityCount = pulpits.length
+        + obstacles.filter((o) => !o.neutralized && !o.cleared).length;
       const maxAllowedEntities = gameTime < 40 ? 2 : 4;
 
       if (spawnCooldown <= 0 && activeEntityCount < maxAllowedEntities && activeEntityCount < 6) {
@@ -3226,10 +3344,10 @@ activeBanner = null;
       return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
     }
 
-    // Sincroniza a MÚSICA imperial (assets/audio/imperial.mp3). Sem arquivo =
-    // silêncio (fallback); o setBgm já ignora troca para o mesmo kind.
+    // Música do overdrive: mantém game.mp3 rodando sempre (não existe trilha própria
+    // para o overdrive; o purge do setBgm evita qualquer nó órfão após a morte).
     function syncOverdriveBgm() {
-      if (gameState === STATE.PLAYING) realAudio.setBgm(overdriveKind ? 'imperial' : 'game');
+      if (gameState === STATE.PLAYING) realAudio.setBgm('game');
     }
 
     // Ativa o overdrive (onça ou imperial) com a apresentação unificada.
@@ -3282,7 +3400,7 @@ activeBanner = null;
         const gain = grantVotes(getObstacleValue(obs));
         votes += gain;
         fs.total += gain;
-        obs.neutralized = true;
+        neutralizeObstacle(obs);
         fs.cleared++;
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffffff', 9);
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 6);
@@ -3412,7 +3530,7 @@ activeBanner = null;
       // Espadim de Tiradentes: elimina o inimigo pagando o valor dele + bônus
       if (hasSwordStrike) {
         hasSwordStrike = false;
-        obs.neutralized = true;
+        neutralizeObstacle(obs);
         if (obs instanceof LadraoObstacle && thiefSquadActive && thiefSquadCaught < 3) thiefSquadCaught++;
         // Espectro: espadim vale 500 votos (sem bônus extra de +200)
         const swordBase = (obs instanceof EspectroObstacle) ? 560 : (getObstacleValue(obs) + 214); // espadim +214
@@ -3435,7 +3553,7 @@ activeBanner = null;
 
         const oncaBonus = oncaRidingTimer > 0 ? 714 : 0; // 51×14
         const total = grantVotes(neutralizeVotes + oncaBonus);
-        obs.neutralized = true;
+        neutralizeObstacle(obs);
         if (obs instanceof LadraoObstacle && thiefSquadActive && thiefSquadCaught < 3) thiefSquadCaught++;
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#ffd400', 14);
         votes += total;
@@ -3453,7 +3571,13 @@ activeBanner = null;
       // Escudo R14 absorve QUALQUER colisão lateral (o pulo na cabeça continua valendo recompensa)
       if (hasShield && !isStomp) {
         hasShield = false;
-        obs.neutralized = true;
+        if (obs instanceof EspectroObstacle && !obs.neutralized) {
+          // Espectro NÃO é exorcizada pelo escudo (senão ela some): só empurra a
+          // assombração de volta para o canto e ela continua sua onda de investidas.
+          obs.goEthereal();
+        } else {
+          neutralizeObstacle(obs);
+        }
         spawnParticles(obs.x + obs.w / 2, obs.y + obs.h / 2, '#3498db', 12);
         mostrarBanner("ESCUDO ABSORVEU O IMPACTO!", "perk", "🛡️");
         return;
@@ -3484,7 +3608,7 @@ activeBanner = null;
           renan.isGrounded = false;
           renan.isFastFalling = false;
           renan.currentPlatform = null;
-          obs.neutralized = true;
+          neutralizeObstacle(obs);
           cameraShake = 3;
           audio.playHit();
           buzz(35);
@@ -3732,7 +3856,7 @@ machistaFlashTimer = 0.7;
 
       // Qualquer outra colisão lateral vira perda de vida (nunca morte instantânea)
       if (!loseLife(1, "Debate encerrado por colisão!")) return;
-      obs.neutralized = true;
+      neutralizeObstacle(obs);
       renan.vy = -7;
       renan.isGrounded = false;
       renan.isFastFalling = false;
@@ -3857,6 +3981,8 @@ machistaFlashTimer = 0.7;
       for (const obs of obstacles) {
         // Espectro fica PRESO no canto direito — não ocupa a zona de spawn dos outros
         if (obs instanceof EspectroObstacle) continue;
+        // Neutralizado/limpado não bloqueia: ele não ameaça mais e só está de passagem
+        if (obs.neutralized || obs.cleared) continue;
         if (Math.abs(obs.x - spawnX) < 140) return;
       }
       for (const p of pulpits) {
@@ -3978,6 +4104,18 @@ machistaFlashTimer = 0.7;
       if (!profile) return;
       triggerEncounterIntro(obs.constructor.name, profile.name, profile.quip, profile.emoji);
     }
+
+    // Sprite (PNG) usado como miniatura no card de introdução — no lugar do emoji
+    const INTRO_THUMB_SPRITES = {
+      JornalistaObstacle: 'jornalista',
+      ExMblObstacle: 'exmbl',
+      McLatrocinioObstacle: 'mc',
+      LadraoObstacle: 'ladrao',
+      MilitanteChaser: 'militante',
+      DroneObstacle: 'drone',
+      TogaObstacle: 'toga',
+      EspectroObstacle: 'espectro'
+    };
 
     // Arquivo real (assets/audio/enemy_*.mp3) por tipo de inimigo no card de introdução
     function enemyFixtureKey(typeKey) {
@@ -4393,9 +4531,10 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       ctx.restore();
     }
 
-    // Modo de preview "pixel A": renderiza a cena em um offscreen de baixa resolução
-    // e reescala com nearest-neighbor. Os textos do canvas são desenhados com fonte
-    // pixel (via proxy de ctx.font) para ficarem nítidos em vez de borrados.
+    // Modo pixel (padrão do jogo): renderiza a cena em um offscreen de baixa resolução
+    // (fator PIXEL_RATIO) e reescala com nearest-neighbor. Os textos do canvas são
+    // desenhados com fonte pixel (via proxy de ctx.font) para ficarem nítidos em vez
+    // de borrados. Com ?pixel=0 o render volta à resolução cheia sem pixelização.
     function render() {
       if (!PIXEL_MODE) {
         drawScene();
@@ -4733,6 +4872,21 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       chkSkipIntros.addEventListener('change', () => setSkipIntrosFlag(chkSkipIntros.checked));
     }
 
+    // Animação de entrada da tela inicial: o quadro do Renan cresce (CSS) e, ao
+    // terminar, libera o fade-in de textos/botão e o toque/tecla para iniciar.
+    // A música 'start' já dispara no load — a animação roda junto desde o início.
+    const MENU_INTRO_MS = 2250; // deve casar com startArtGrow (styles.css)
+    let menuIntroTimer = null;
+    function playMenuIntro() {
+      overlayStart.classList.remove('reveal-done');
+      menuIntroDone = false;
+      clearTimeout(menuIntroTimer);
+      menuIntroTimer = setTimeout(() => {
+        menuIntroDone = true;
+        overlayStart.classList.add('reveal-done');
+      }, MENU_INTRO_MS);
+    }
+
     function startGame() {
       audio.init();
       realAudio.unlock();
@@ -4876,6 +5030,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       overlayGameOver.classList.add('hidden');
       overlayStart.classList.remove('hidden');
       resetWorld();
+      playMenuIntro();
       lbSubmittedThisRun = false;
       const lbSubmitBtn = document.getElementById('lb-submit');
       if (lbSubmitBtn) lbSubmitBtn.disabled = false;
@@ -4891,6 +5046,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
 
     // --- CARD PNG DE RECORDE (P2) ---
     // Gera um card 1080x1350 com patente/placar para compartilhar como imagem.
+    const cardFileName = 'pra-cima-deles-renan-recorde.png';
     const shareArtImg = new Image();
     shareArtImg.src = './assets/capa-renan.png';
     let shareArtReady = false;
@@ -4941,42 +5097,72 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
           c.textAlign = 'center';
           c.textBaseline = 'alphabetic';
 
-          // Selo superior
+          // Título em pixel (como no jogo: Pixelify Sans, amarelo)
+          const pix = (weight, size, serif) => PIXEL_MODE
+            ? `${weight} ${size}px "Pixelify Sans", "Press Start 2P", "Courier New", monospace`
+            : `${serif ? '900' : 'bold'} ${size}px ${serif ? 'Georgia, serif' : 'Arial, sans-serif'}`;
+
+          c.fillStyle = '#ffffff';
+          c.font = pix(700, 44, true);
+          c.fillText('pra cima deles,', W / 2, 126);
           c.fillStyle = '#ffd400';
-          c.font = 'bold 34px Arial, sans-serif';
-          c.fillText('CAMPANHA OFICIAL', W / 2, 130);
-          c.font = '900 46px Georgia, serif';
-          c.fillText('pra cima deles,', W / 2, 168);
-          c.fillText('renan!', W / 2, 224);
+          c.fillText('renan!', W / 2, 178);
+
+          // Hashtag abaixo do título (como na tela inicial)
+          c.save();
+          c.shadowColor = 'rgba(255, 212, 0, 0.35)';
+          c.shadowBlur = 14;
+          c.fillStyle = '#ffd400';
+          c.font = pix(700, 24, false);
+          c.fillText('#PraCimaDelesRenan', W / 2, 228);
+          c.restore();
+          c.shadowColor = 'transparent';
+          c.shadowBlur = 0;
 
           // Arte oficial
-          const dim = 540;
-          const artY = 260;
+          const dim = 480;
+          const artY = 258;
+          const artX = W / 2 - dim / 2;
           if (shareArtReady) {
             c.save();
-            roundRectPath(c, W / 2 - dim / 2, artY, dim, dim, 26);
+            roundRectPath(c, artX, artY, dim, dim, 26);
             c.clip();
-            c.drawImage(shareArtImg, W / 2 - dim / 2, artY, dim, dim);
+            c.drawImage(shareArtImg, artX, artY, dim, dim);
             c.restore();
           } else {
             const g2 = c.createLinearGradient(0, artY, 0, artY + dim);
             g2.addColorStop(0, '#23375f');
             g2.addColorStop(1, '#0d1930');
             c.fillStyle = g2;
-            roundRectPath(c, W / 2 - dim / 2, artY, dim, dim, 26);
+            roundRectPath(c, artX, artY, dim, dim, 26);
             c.fill();
             c.fillStyle = '#ffd400';
-            c.font = '900 120px Georgia, serif';
+            c.font = pix(700, 120, true);
             c.fillText('★', W / 2, artY + dim / 2 + 42);
           }
 
+          // Selo #14 no canto superior direito da arte (como na tela inicial)
+          const pillW = 112, pillH = 60, pillPad = 12;
+          const pillX = artX + dim - pillW - pillPad;
+          const pillY = artY + pillPad;
+          c.fillStyle = '#ffd400';
+          roundRectPath(c, pillX, pillY, pillW, pillH, pillH / 2);
+          c.fill();
+          c.save();
+          c.textBaseline = 'middle';
+          c.fillStyle = '#0b1528';
+          c.font = pix(700, 34, false);
+          c.fillText('#14', pillX + pillW / 2, pillY + pillH / 2 + 1);
+          c.restore();
+          c.textBaseline = 'alphabetic';
+
           // Placar principal: votos
           c.fillStyle = '#9ab0d3';
-          c.font = 'bold 34px Arial, sans-serif';
-          c.fillText('VOTOS OBTIDOS', W / 2, artY + dim + 84);
+          c.font = pix(600, 30, false);
+          c.fillText('VOTOS OBTIDOS', W / 2, artY + dim + 72);
           c.fillStyle = '#ffd400';
-          c.font = '900 110px Georgia, serif';
-          c.fillText(formatVotes(finalVotes), W / 2, artY + dim + 196);
+          c.font = pix(700, 84, true);
+          c.fillText(formatVotes(finalVotes), W / 2, artY + dim + 186);
 
           // Linha de estáticas
           const stats = [
@@ -4984,8 +5170,8 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
             { label: 'TEMPO', value: formatTimeSeconds(lastGameTime) },
             { label: 'OBSTÁCULOS', value: String(obstaclesCleared) }
           ];
-          const statY = artY + dim + 300;
-          const statW = 292, statH = 128;
+          const statY = artY + dim + 252;
+          const statW = 292, statH = 112;
           const gap = 36;
           const leftX = (W - (statW * 3 + gap * 2)) / 2;
           stats.forEach((s, i) => {
@@ -4994,42 +5180,41 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
             roundRectPath(c, x, statY, statW, statH, 18);
             c.fill();
             c.fillStyle = '#ffffff';
-            c.font = '900 52px Georgia, serif';
-            c.fillText(s.value, x + statW / 2, statY + 66);
+            c.font = pix(700, 52, true);
+            c.fillText(s.value, x + statW / 2, statY + 62);
             c.fillStyle = '#8da4c4';
-            c.font = 'bold 26px Arial, sans-serif';
-            c.fillText(s.label, x + statW / 2, statY + 108);
+            c.font = pix(600, 26, false);
+            c.fillText(s.label, x + statW / 2, statY + 103);
           });
 
           // Patente alcançada
-          const patY = statY + statH + 46;
+          const patY = statY + statH + 34;
           c.fillStyle = rank.isGold ? '#ffd400' : '#ffffff';
-          c.font = 'bold 32px Arial, sans-serif';
+          c.font = pix(600, 28, false);
           c.fillText('PATENTE ALCANÇADA', W / 2, patY);
           c.fillStyle = rank.isGold ? '#ffd400' : '#ffffff';
-          c.font = '900 52px Georgia, serif';
-          c.fillText(rank.title, W / 2, patY + 62);
+          c.font = pix(700, 36, true);
+          c.fillText(rank.title, W / 2, patY + 50);
 
           // Recorde
-          const recY = patY + 112;
+          const recY = patY + 96;
           if (lastRunWasNewRecord) {
             c.fillStyle = '#ffd400';
-            c.font = 'bold 40px Arial, sans-serif';
+            c.font = pix(700, 28, false);
             c.fillText('★ NOVO RECORDE ★', W / 2, recY);
           } else {
             c.fillStyle = '#8da4c4';
-            c.font = 'bold 32px Arial, sans-serif';
+            c.font = pix(600, 26, false);
             c.fillText(`RECORDE: ${formatVotes(highscore)}`, W / 2, recY);
           }
 
-          // Rodapé
-          const footY = H - 110;
-          c.fillStyle = '#9ab0d3';
-          c.font = 'bold 34px Arial, sans-serif';
-          c.fillText('@ssalomao14  ·  #PraCimaDelesRenan · #14', W / 2, footY);
-          c.fillStyle = '#5f789c';
-          c.font = '26px Arial, sans-serif';
-          c.fillText('Pontuação lúdica, sem premiação.', W / 2, footY + 46);
+          // Rodapé sutil, unificado (uma fonte só)
+          c.fillStyle = '#6b84a8';
+          c.font = pix(500, 24, false);
+          c.fillText('Criado por @ssalomao14', W / 2, H - 70);
+          c.fillStyle = '#4e6588';
+          c.font = pix(400, 20, false);
+          c.fillText('Pontuação lúdica, sem premiação.', W / 2, H - 38);
 
           cnv.toBlob((blob) => resolve(blob), 'image/png');
         };
@@ -5043,7 +5228,6 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     }
 
     function downloadShareCard(blob, payload) {
-      const cardFileName = 'pra-cima-deles-renan-recorde.png';
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -5074,10 +5258,6 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     btnShare.addEventListener('click', async (e) => {
       e.stopPropagation();
       audio.playClick();
-      if (lastVotes <= 0) {
-        copyShareToClipboard(buildSharePayload().full);
-        return;
-      }
       const payload = buildSharePayload();
       try {
         const blob = await buildShareCardBlob();
@@ -5093,6 +5273,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
         }
       } catch (err) {
         // Fallback: compartilhamento só de texto (comportamento de antes)
+        console.error('[share-card]', err);
         if (navigator.share && isMobileUA()) {
           navigator.share(payload).catch(() => {});
         } else {
@@ -5439,6 +5620,74 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       });
     }
 
+    // --- SOBRE O JOGO (modal estático; conteúdo editável em index.html) ---
+    const linkSobre = document.getElementById('link-sobre');
+    const sobreModal = document.getElementById('sobre-modal');
+    const sobreClose = document.getElementById('sobre-close');
+
+    function openSobre() {
+      if (sobreModal) sobreModal.classList.remove('hidden');
+    }
+
+    function closeSobre() {
+      if (sobreModal) sobreModal.classList.add('hidden');
+    }
+
+    if (linkSobre) {
+      linkSobre.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audio.playClick();
+        openSobre();
+      });
+    }
+    if (sobreClose) {
+      sobreClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        audio.playClick();
+        closeSobre();
+      });
+    }
+    if (sobreModal) {
+      sobreModal.addEventListener('click', (e) => {
+        if (e.target === sobreModal) closeSobre();
+      });
+    }
+
+    // --- PRIVACIDADE & AVISOS (modal estático; conteúdo editável em index.html) ---
+    const linkPrivacidade = document.getElementById('link-privacidade');
+    const privacidadeModal = document.getElementById('privacidade-modal');
+    const privacidadeClose = document.getElementById('privacidade-close');
+
+    function openPrivacidade() {
+      if (privacidadeModal) privacidadeModal.classList.remove('hidden');
+    }
+
+    function closePrivacidade() {
+      if (privacidadeModal) privacidadeModal.classList.add('hidden');
+    }
+
+    if (linkPrivacidade) {
+      linkPrivacidade.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audio.playClick();
+        openPrivacidade();
+      });
+    }
+    if (privacidadeClose) {
+      privacidadeClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        audio.playClick();
+        closePrivacidade();
+      });
+    }
+    if (privacidadeModal) {
+      privacidadeModal.addEventListener('click', (e) => {
+        if (e.target === privacidadeModal) closePrivacidade();
+      });
+    }
+
     // --- RESPONSIVIDADE CANVAS (Ajuste nítido com DevicePixelRatio) ---
     function resizeCanvas() {
       const wrapper = document.getElementById('game-wrapper');
@@ -5503,5 +5752,6 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     // Iniciação
     resizeCanvas();
     resetWorld();
+    playMenuIntro();
     requestAnimationFrame(gameLoop);
   

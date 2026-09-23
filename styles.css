@@ -352,6 +352,36 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       pointer-events: none;
     }
 
+    /* Animação de entrada da tela inicial: o quadro do Renan nasce pequeno e cresce
+       até o tamanho real (transform). Só depois que terminar (classe reveal-done,
+       adicionada via JS) é que os textos e o botão JOGAR aparecem em fade-in. */
+    @keyframes startArtGrow {
+      0%   { transform: scale(0.05); opacity: 0; }
+      10%  { opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .start-art-container {
+      transform-origin: 50% 50%;
+      animation: startArtGrow 2.25s cubic-bezier(0.2, 0.9, 0.25, 1.1);
+    }
+
+    /* Título/"#PraCimaDelesRenan" (1º filho) e o bloco de ações — botão JOGAR,
+       dica, checkbox de intros, links e assinatura (último filho) — ficam ocultos
+       durante a animação e entram em fade quando o quadro termina de crescer. */
+    #overlay-start > div:first-child,
+    #overlay-start > div:last-child {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #overlay-start.reveal-done > div:first-child,
+    #overlay-start.reveal-done > div:last-child {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 1.8s ease-out;
+    }
+
     .start-footer-links {
       display: flex;
       gap: 12px;
@@ -998,6 +1028,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
     }
     #overlay-gameover .gameover-card {
       padding: 10px 12px;
+      margin: 0; /* anula o `margin: auto 0` base (que criava vão gigante no flex) */
     }
     #overlay-gameover .rank-highlight-box {
       padding: 6px 10px;
@@ -1081,10 +1112,10 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       gap: 5px;
     }
     #overlay-gameover .btn-support {
-      max-width: 100%;
-      padding: 10px 14px;
-      font-size: 0.9rem;
-      margin: 7px auto 2px;
+      max-width: 340px; /* mesma largura dos outros botões/bos de pontuação */
+      padding: 15px 14px; /* um pouco mais alto que os demais botões */
+      font-size: 0.95rem;
+      margin: 0 auto;
     }
     #overlay-gameover .btn-secondary-action {
       padding: 7px 12px;
@@ -1187,6 +1218,15 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       font-weight: 900;
     }
 
+    .modal-title-ico {
+      width: 22px;
+      height: 22px;
+      vertical-align: -4px;
+      margin-right: 6px;
+      display: inline-block;
+      image-rendering: pixelated;
+    }
+
     .modal-close {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1197,6 +1237,41 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       cursor: pointer;
       font-size: 0.8rem;
       line-height: 1;
+    }
+
+    .sobre-body {
+      padding: 12px 16px;
+      overflow-y: auto;
+    }
+
+    .sobre-sec {
+      margin-bottom: 14px;
+    }
+
+    .sobre-h {
+      margin: 0 0 6px;
+      font-size: 0.88rem;
+      font-weight: 900;
+      color: #ffd400;
+    }
+
+    .sobre-p {
+      margin: 0 0 6px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #c3d0e8;
+    }
+
+    .sobre-list {
+      margin: 0 0 6px;
+      padding-left: 18px;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      color: #c3d0e8;
+    }
+
+    .sobre-list b {
+      color: #fff;
     }
 
     .glossary-hint {
@@ -1314,12 +1389,13 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 10px;
       width: 100%;
-      max-width: 330px;
-      margin: 10px auto 4px;
-      padding: 13px 16px;
-      border-radius: 14px;
+      max-width: 340px; /* mesma largura do box de pontuação (gameover-card) */
+      box-sizing: border-box;
+      margin: 0 auto;
+      padding: 18px 16px;
+      border-radius: 16px;
       border: 2px solid #ffd400;
       background: linear-gradient(135deg, rgba(255, 212, 0, 0.2), rgba(255, 150, 0, 0.1));
       color: #ffd400;
@@ -1341,6 +1417,20 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
 
     .btn-support-ico {
       font-size: 1.15rem;
+      line-height: 0;
+    }
+
+    .btn-support-ico svg {
+      width: 21px;
+      height: 25px;
+      display: block;
+    }
+
+    .btn-support-ico-img {
+      width: 21px;
+      height: 25px;
+      display: block;
+      image-rendering: pixelated;
     }
 
     .apoio-hint {
@@ -1355,8 +1445,7 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       display: flex;
       flex-direction: column;
       gap: 8px;
-      max-height: 300px;
-      overflow-y: auto;
+      padding: 0 14px;
     }
 
     .apoio-link {
@@ -1378,11 +1467,6 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
 
     .apoio-link:active {
       transform: scale(0.99);
-    }
-
-    .apoio-emoji {
-      font-size: 1.4rem;
-      flex: 0 0 auto;
     }
 
     .apoio-info {

@@ -130,11 +130,13 @@
         </label>
         <div class="error-notice" id="error-notice"></div>
         <div class="start-footer-links">
-          <a href="#" class="start-footer-link" onclick="event.preventDefault(); alert('pra cima deles, renan!: jogo satírico de plataforma com patente e recordes.');">Sobre</a>
+          <a href="#" class="start-footer-link" id="link-sobre">Sobre</a>
           <span style="color:#3c5378; font-size:0.7rem;">•</span>
-          <a href="#" class="start-footer-link" onclick="event.preventDefault(); alert('Privacidade: Nenhum dado pessoal é coletado. Recordes salvos apenas no navegador local.');">Privacidade</a>
+          <a href="#" class="start-footer-link" id="link-privacidade">Privacidade</a>
+          <span style="color:#3c5378; font-size:0.7rem;">•</span>
+          <a href="https://x.com/messages/compose?recipient_id=4428615743" class="start-footer-link" target="_blank" rel="noopener">Feedback</a>
         </div>
-        <div class="gameover-author">Criado por <a href="https://www.instagram.com/ssalomao14" target="_blank" rel="noopener">Samuel Salomão (@ssalomao14)</a> · <a href="https://github.com/ssalomao14" target="_blank" rel="noopener">GitHub</a></div>
+        <div class="gameover-author">Criado por <a href="https://x.com/ssalomao14" target="_blank" rel="noopener">Samuel Salomão (@ssalomao14)</a> · <a href="https://github.com/ssalomao14" target="_blank" rel="noopener">GitHub</a></div>
       </div>
     </div>
 
@@ -174,7 +176,9 @@
 
       <!-- Apoio: botão em destaque, logo abaixo da pontuação -->
       <button class="btn-support" id="btn-support" type="button">
-        <span class="btn-support-ico">❤️</span>
+        <span class="btn-support-ico">
+          <img class="btn-support-ico-img" src="./assets/simbolo-missao.png" alt="Símbolo da missão" onerror="this.style.display='none';">
+        </span>
         APOIE A MISSÃO
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
           <path d="M5 12h14M13 6l6 6-6 6"></path>
@@ -228,7 +232,7 @@
       <!-- Menu de Compartilhamento removido: o botão "Compartilhar" agora abre o
            menu nativo do dispositivo (mobile) ou copia o texto (desktop). -->
 
-      <div class="gameover-author">Criado por <a href="https://www.instagram.com/ssalomao14" id="author-link" target="_blank" rel="noopener">Samuel Salomão (@ssalomao14)</a> · <a href="https://github.com/ssalomao14" target="_blank" rel="noopener" id="author-github">GitHub</a></div>
+      <div class="gameover-author">Criado por <a href="https://x.com/ssalomao14" id="author-link" target="_blank" rel="noopener">Samuel Salomão (@ssalomao14)</a> · <a href="https://github.com/ssalomao14" target="_blank" rel="noopener" id="author-github">GitHub</a></div>
       <div class="gameover-author gameover-disclaimer">Apoiador independente, divulgado de forma orgânica.</div>
     </div>
 
@@ -252,37 +256,40 @@
     <div class="modal-backdrop hidden" id="apoio-modal">
       <div class="modal">
         <div class="modal-head">
-          <h3 class="modal-title">❤️ APOIE A MISSÃO</h3>
+          <h3 class="modal-title"><img class="modal-title-ico" src="./assets/simbolo-missao.png" alt="" onerror="this.style.display='none';"> APOIE A MISSÃO</h3>
           <button class="modal-close" id="apoio-close" aria-label="Fechar">✕</button>
         </div>
         <div class="apoio-hint">Escolha como ajudar:</div>
         <div class="apoio-links">
-          <a class="apoio-link" href="#" data-apoio="candidatos" target="_blank" rel="noopener">
-            <span class="apoio-emoji">🗳️</span>
+          <a class="apoio-link" href="https://missao.org.br/" data-apoio="site-missao" target="_blank" rel="noopener">
+            <span class="apoio-info">
+              <span class="apoio-title">Site da Missão</span>
+              <span class="apoio-sub">O portal oficial da missão</span>
+            </span>
+            <span class="apoio-go">→</span>
+          </a>
+          <a class="apoio-link" href="https://candidatos.missao.org.br/" data-apoio="candidatos" target="_blank" rel="noopener">
             <span class="apoio-info">
               <span class="apoio-title">Candidatos da Missão</span>
-              <span class="apoio-sub">Conheça os candidatos apoiados — link em breve</span>
+              <span class="apoio-sub">Conheça os candidatos apoiados</span>
             </span>
             <span class="apoio-go">→</span>
           </a>
-          <a class="apoio-link" href="#" data-apoio="doacao-renan" target="_blank" rel="noopener">
-            <span class="apoio-emoji">📕</span>
+          <a class="apoio-link" href="https://www.renanpresidente.com.br/doar" data-apoio="doacao-renan" target="_blank" rel="noopener">
             <span class="apoio-info">
               <span class="apoio-title">Doação oficial — Renan Santos</span>
-              <span class="apoio-sub">Site oficial de doações do Renan — link em breve</span>
+              <span class="apoio-sub">Site oficial de doações do Renan</span>
             </span>
             <span class="apoio-go">→</span>
           </a>
-          <a class="apoio-link" href="#" data-apoio="doacao-autor" target="_blank" rel="noopener">
-            <span class="apoio-emoji">☕</span>
+          <a class="apoio-link" href="https://livroamarelo.org.br/" data-apoio="livro-amarelo" target="_blank" rel="noopener">
             <span class="apoio-info">
-              <span class="apoio-title">Doação para o autor</span>
-              <span class="apoio-sub">Apoie Samuel Salomão (@ssalomao14) — link em breve</span>
+              <span class="apoio-title">Livro Amarelo</span>
+              <span class="apoio-sub">Conheça o livro de propostas da Missão</span>
             </span>
             <span class="apoio-go">→</span>
           </a>
           <a class="apoio-link" href="#" data-apoio="colinha" target="_blank" rel="noopener">
-            <span class="apoio-emoji">📋</span>
             <span class="apoio-info">
               <span class="apoio-title">Colinha de candidatos</span>
               <span class="apoio-sub">Minha cola pronta na hora de votar — link em breve</span>
@@ -291,6 +298,70 @@
           </a>
         </div>
         <div class="modal-foot">Apoiador independente, divulgado de forma orgânica.</div>
+      </div>
+    </div>
+
+    <!-- Sobre o jogo (Modal) -->
+    <div class="modal-backdrop hidden" id="sobre-modal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 class="modal-title">SOBRE O JOGO</h3>
+          <button class="modal-close" id="sobre-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="sobre-body">
+          <section class="sobre-sec">
+            <h4 class="sobre-h">🎮 O que é</h4>
+            <p class="sobre-p">"pra cima deles, renan!" é um jogo de plataforma satírico de campanha eleitoral. Você é o Renan (14) e precisa correr, pular e atropelar a confusão da corrida política para somar a maior votação possível.</p>
+          </section>
+          <section class="sobre-sec">
+            <h4 class="sobre-h">🕹️ Controles</h4>
+            <ul class="sobre-list">
+              <li><b>Toque / Espaço</b> — pular</li>
+              <li><b>Segurar</b> — salto mais alto</li>
+              <li><b>Toque no ar</b> — descer rápido</li>
+              <li><b>P / Esc</b> — pausar</li>
+            </ul>
+            <p class="sobre-p">Pule na cabeça dos inimigos para neutralizar e ganhar votos. Cuidado com púlpitos, processos e assombrações.</p>
+          </section>
+          <section class="sobre-sec">
+            <h4 class="sobre-h">🏆 Pontos e patentes</h4>
+            <p class="sobre-p">Cada neutralizada vale votos; as patentes são múltiplas de 14 — de <b>Recruta</b> até <b>Alexandre, O Grande</b>. Algemas presas somam +2.114 votos no fechamento.</p>
+          </section>
+          <section class="sobre-sec">
+            <h4 class="sobre-h">⚠️ Aviso</h4>
+            <p class="sobre-p">Jogo satírico e fictício feito por fã, sem vínculo oficial com candidatos. Os votos são puramente lúdicos e nenhum dado pessoal é coletado.</p>
+          </section>
+        </div>
+        <div class="modal-foot">Criado por @ssalomao14 · #PraCimaDelesRenan</div>
+      </div>
+    </div>
+
+    <!-- Privacidade & Avisos (Modal) -->
+    <div class="modal-backdrop hidden" id="privacidade-modal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 class="modal-title">PRIVACIDADE & AVISOS</h3>
+          <button class="modal-close" id="privacidade-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="sobre-body">
+          <section class="sobre-sec">
+            <h4 class="sobre-h">⚖️ Pontuação é lúdica</h4>
+            <p class="sobre-p">Todas as pontuações, votos, patentes e rankings são 100% lúdicos. Não há recompensa financeira, prêmio ou qualquer conversão em dinheiro — e nada aqui influencia eleições oficiais.</p>
+          </section>
+          <section class="sobre-sec">
+            <h4 class="sobre-h">🤝 Apoiador independente</h4>
+            <p class="sobre-p">Jogo criado por apoiador independente, de forma orgânica, sem vínculo com partidos, candidatos ou comitês de campanha.</p>
+          </section>
+          <section class="sobre-sec">
+            <h4 class="sobre-h">🔒 Nenhum dado é coletado</h4>
+            <p class="sobre-p">Este jogo não coleta dados pessoais. Recordes e preferências (ex.: som) ficam apenas neste navegador, via localStorage. Não há cookies de rastreamento, cadastro nem envio de informações para servidores.</p>
+          </section>
+          <section class="sobre-sec">
+            <h4 class="sobre-h">🔗 Links externos</h4>
+            <p class="sobre-p">Os links do jogo (X, GitHub, sites da missão) abrem em nova aba do navegador e seguem as políticas de privacidade de cada site.</p>
+          </section>
+        </div>
+        <div class="modal-foot">Feito por @ssalomao14 · #PraCimaDelesRenan</div>
       </div>
     </div>
 
