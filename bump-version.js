@@ -35,6 +35,13 @@ fs.writeFileSync(FILE, src.replace(m[0], `const ${TAG} = '${next}'`));
 const INDEX = path.join(__dirname, 'index.html');
 let html = fs.readFileSync(INDEX, 'utf8').replace(/styles\.css\?v=[\d.]+/g, `styles.css?v=${next}`);
 html = html.replace(/game\.js\?v=[\d.]+/g, `game.js?v=${next}`);
+// Modal Sobre: mantem numero da versao e data de publicacao em sincronia
+const p = new Date();
+const mm = String(p.getMonth() + 1).padStart(2, '0');
+const dd = String(p.getDate()).padStart(2, '0');
+const today = `${dd}/${mm}/${p.getFullYear()}`;
+html = html.replace(/sobre-version-num">[\d.]+/g, `sobre-version-num">${next}`);
+html = html.replace(/sobre-version-date">[^<]+/g, `sobre-version-date">${today}`);
 fs.writeFileSync(INDEX, html);
 
 console.log(`OK: ${m[1]} -> ${next}`);

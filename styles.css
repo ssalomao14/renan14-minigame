@@ -1372,6 +1372,12 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
 
+    .sobre-version {
+      margin-top: 5px;
+      font-size: 0.62rem;
+      color: #7d94bd;
+    }
+
     /* Controls touch prompt helper */
     .controls-hint {
       position: absolute;

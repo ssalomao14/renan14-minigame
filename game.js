@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.11';
+    const GAME_VERSION = '0.1.12';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
