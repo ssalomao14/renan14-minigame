@@ -201,6 +201,49 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       display: none !important;
     }
 
+    /* Splash de áudio: 1º toque libera o som (autoplay bloqueado no mobile) */
+    #overlay-splash {
+      justify-content: center;
+      background: radial-gradient(circle at 50% 38%, #132144 0%, #050a1a 72%);
+      z-index: 30;
+      cursor: pointer;
+    }
+    .splash-inner {
+      text-align: center;
+      max-width: 300px;
+    }
+    .splash-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      line-height: 1.4;
+      color: #ffd400;
+      text-shadow: 0 0 22px rgba(255, 212, 0, 0.5);
+      animation: splashBlink 1.4s ease-in-out infinite;
+    }
+    .splash-sub {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: #9ab0d3;
+    }
+    .splash-pulse {
+      margin: 26px auto 0;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffd400;
+      box-shadow: 0 0 16px rgba(255, 212, 0, 0.85);
+      animation: splashPulse 1.2s ease-in-out infinite;
+    }
+    @keyframes splashBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+    @keyframes splashPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.8); opacity: 0.45; }
+    }
+
     /* Start Screen */
     .start-badge {
       display: inline-block;

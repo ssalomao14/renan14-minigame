@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.12';
+    const GAME_VERSION = '0.1.13';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -4891,6 +4891,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
 
     // --- TELAS E TRANSIÇÕES ---
     const overlayStart = document.getElementById('overlay-start');
+    const overlaySplash = document.getElementById('overlay-splash');
     const overlayGameOver = document.getElementById('overlay-gameover');
     const btnPlay = document.getElementById('btn-play');
     const btnReplay = document.getElementById('btn-replay');
@@ -4921,6 +4922,34 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       }, MENU_INTRO_MS);
     }
 
+    // Splash de áudio: no mobile o autoplay é bloqueado, então o 1º toque aqui
+    // libera o som (o firstGestureUnlock global toca a intro) e revela o menu
+    // com a animação de entrada rodando logo em seguida — antes do botão JOGAR.
+    let splashDismissed = false;
+    function dismissSplash(reRunMenuIntro = true) {
+      if (splashDismissed) return;
+      splashDismissed = true;
+      overlaySplash.classList.add('hidden');
+      if (reRunMenuIntro) playMenuIntro();
+    }
+    if (overlaySplash) {
+      overlaySplash.addEventListener('pointerdown', () => { dismissSplash(); });
+      overlaySplash.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'Enter') {
+          e.preventDefault();
+          dismissSplash();
+        }
+      });
+    }
+    // Se o navegador deixou o autoplay rodar (desktop/engagement), a intro já soa
+    // sozinha: dispensa a splash automaticamente
+    setTimeout(() => {
+      if (!splashDismissed && realAudio.enabled && realAudio.ctx
+          && realAudio.ctx.state !== 'suspended' && realAudio.bgmKind === 'start') {
+        dismissSplash();
+      }
+    }, 450);
+
     function startGame() {
       audio.init();
       realAudio.unlock();
@@ -4928,6 +4957,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       audio.playStartSting();
       isPaused = false;
       syncPauseUi();
+      dismissSplash(false); // se abriu via teclado/Nav com a splash visível, tira do caminho
       gameState = STATE.PLAYING;
       resetWorld();
       overlayStart.classList.add('hidden');

@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@1.0.2/dist/basecoat.cdn.min.css">
   
   <!-- Shell System -->
-  <link rel="stylesheet" href="styles.css?v=0.1.12">
+  <link rel="stylesheet" href="styles.css?v=0.1.13">
 
   
 
@@ -137,6 +137,16 @@
           <a href="https://x.com/messages/compose?recipient_id=4428615743" class="start-footer-link" target="_blank" rel="noopener">Feedback</a>
         </div>
         <div class="gameover-author">Criado por <a href="https://x.com/ssalomao14" target="_blank" rel="noopener">Samuel Salomão (@ssalomao14)</a> · <a href="https://github.com/ssalomao14" target="_blank" rel="noopener">GitHub</a></div>
+      </div>
+    </div>
+
+    <!-- Splash de áudio: navegadores bloqueiam autoplay no mobile, então o 1º toque
+         aqui ativa o som e toca a música de introdução ANTES do botão JOGAR. -->
+    <div class="game-overlay" id="overlay-splash">
+      <div class="splash-inner">
+        <div class="splash-title">TOQUE<br>PARA COMEÇAR</div>
+        <div class="splash-sub">Ative o som para ouvir a introdução</div>
+        <div class="splash-pulse"></div>
       </div>
     </div>
 
@@ -333,7 +343,7 @@
         </div>
         <div class="modal-foot">
           Criado por @ssalomao14 · #PraCimaDelesRenan
-          <div class="sobre-version">Versão <span class="sobre-version-num">0.1.12</span> — publicada em <span class="sobre-version-date">23/09/2026</span></div>
+          <div class="sobre-version">Versão <span class="sobre-version-num">0.1.13</span> — publicada em <span class="sobre-version-date">24/09/2026</span></div>
         </div>
       </div>
     </div>
@@ -379,7 +389,7 @@
     </button>
   </div>
 
-  <script src="game.js?v=0.1.12"></script>
+  <script src="game.js?v=0.1.13"></script>
 
 <script>
 /* Skip artifact shell — fixed helpers served beside every artifact. */
