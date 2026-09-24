@@ -1014,12 +1014,13 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
       font-size: 0.68rem;
     }
 
-    /* --- TELA FINAL COMPACTA: TUDO CABE EM 1 TELA (sem rolagem) --- */
+    /* --- TELA FINAL COMPACTA (rola para baixo se faltar espaço no mobile) --- */
     #overlay-gameover {
       padding: 8px 14px 10px;
       justify-content: flex-start;
       gap: 6px;
-      overflow: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
     #overlay-gameover h2#go-time-label {
       margin: 0;

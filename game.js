@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.10';
+    const GAME_VERSION = '0.1.11';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -5378,7 +5378,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       list.push(Object.assign({}, entry, { at: Date.now() }));
       saveLocalLeaderboard(list);
       lbSubmittedThisRun = true;
-      return { ok: true, message: 'Registrado (modo local — conecte um backend para ranking comunitário).' };
+      return { ok: true, message: 'Registrado! Resultado salvo neste dispositivo — em breve o ranking será público/comunitário.' };
     }
 
     function renderLeaderboardList(entries) {
@@ -5412,7 +5412,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
         if (noteEl) {
           noteEl.textContent = LEADERBOARD_API_URL
             ? 'Ranking da comunidade atualizado ao vivo.'
-            : 'Modo local: conecte um backend para o ranking comunitário.';
+            : 'Ranking apenas local (neste dispositivo) — em breve, o ranking público da comunidade.';
         }
       } else {
         renderLeaderboardList(getLocalLeaderboard().slice(0, 10));
