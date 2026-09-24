@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.13';
+    const GAME_VERSION = '0.1.14';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -451,8 +451,15 @@
             return;
           }
           if (!this.ctx || this.bgmKind !== kind) return; // mudou de ideia no meio
-          if (this.ctx.state === 'suspended') return; // aguarda o resume; o unlock re-dispara o setBgm
           if (this._bgmNode && kind === this.bgmKind) return; // já recriado (evita faixa duplicada)
+          // Ctx ainda suspenso (iOS no 1º gesto): pede o resume AQUI, na mesma pilha
+          // de chamadas do gesto — o createBufferSource().start() precisa rodar dentro
+          // do handler; se ficar só no .then() do resume (microtask), o iOS não emite.
+          // O nó criado engata assim que o ctx rodar (mesmo padrão que faz a trilha de
+          // jogo funcionar no startGame).
+          if (this.ctx.state === 'suspended') {
+            try { this.ctx.resume().catch(() => {}); } catch (err) {}
+          }
           const now = this.ctx.currentTime;
           const src = this.ctx.createBufferSource();
           const g = this.ctx.createGain();
@@ -5786,6 +5793,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     // Pré-carrega a música para o primeiro toque ser instantâneo (sem atraso de fetch/decodificação)
     realAudio.prewarm('start');
     realAudio.prewarm('game');
+    realAudio.prewarm('renan_voice'); // decodifica antes do 1º gesto para o playOne ser sincrono no toque
 
     // Música de introdução na tela inicial: tenta autoplay no load (navegadores que
     // permitem — ex.: localhost/Chrome com engagement — tocam logo no refresh); senão,
