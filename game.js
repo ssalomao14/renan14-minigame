@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.17';
+    const GAME_VERSION = '0.1.18';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -5099,6 +5099,8 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
           const badgeEl = document.getElementById('go-new-record');
           if (badgeEl) badgeEl.classList.add('show');
         }
+        openShareModal();
+        refreshCommunityStats();
       }, 350);
     }
 
@@ -5127,6 +5129,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       introNeedsStart = true;
       armMenuIntro();
       playMenuIntro();
+      refreshCommunityStats();
       lbSubmittedThisRun = false;
       const lbSubmitBtn = document.getElementById('lb-submit');
       if (lbSubmitBtn) lbSubmitBtn.disabled = false;
@@ -5142,6 +5145,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     // --- CARD PNG DE RECORDE (P2) ---
     // Gera um card 1080x1350 com patente/placar para compartilhar como imagem.
     const cardFileName = 'pra-cima-deles-renan-recorde.png';
+    let sharePreviewUrl = null; // objectURL do card exibido na prévia da tela final
     const shareArtImg = new Image();
     shareArtImg.src = './assets/capa-renan.png';
     let shareArtReady = false;
@@ -5336,6 +5340,29 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       showShareToast('Card de recorde gerado e link copiado! #PraCimaDelesRenan #14');
     }
 
+    function buildSharePreview() {
+      const imgEl = document.getElementById('go-share-preview');
+      const textEl = document.getElementById('go-share-text');
+      const loadingEl = document.getElementById('go-share-loading');
+      const payload = buildSharePayload();
+      if (textEl) textEl.textContent = payload.full;
+      if (imgEl) {
+        if (sharePreviewUrl) { URL.revokeObjectURL(sharePreviewUrl); sharePreviewUrl = null; }
+        if (loadingEl) loadingEl.style.display = 'flex';
+        imgEl.style.display = 'none';
+        buildShareCardBlob().then((blob) => {
+          if (!blob) {
+            if (loadingEl) loadingEl.style.display = 'flex';
+            return;
+          }
+          sharePreviewUrl = URL.createObjectURL(blob);
+          imgEl.src = sharePreviewUrl;
+          imgEl.style.display = 'block';
+          if (loadingEl) loadingEl.style.display = 'none';
+        });
+      }
+    }
+
     // Botão USAR COMPARTILHAR: abre o menu nativo do dispositivo (mobile).
     // No desktop (sem Web Share de verdade) copia o texto e mostra um banner.
     function isMobileUA() {
@@ -5350,8 +5377,8 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       showShareToast('Texto e link copiados para compartilhamento · #PraCimaDelesRenan #14');
     }
 
-    btnShare.addEventListener('click', async (e) => {
-      e.stopPropagation();
+    // Compartilhar (usado pelo botão da prévia e pelo botão da barra de ações)
+    async function doShare() {
       audio.playClick();
       const payload = buildSharePayload();
       try {
@@ -5360,22 +5387,173 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
         const file = new File([blob], cardFileName, { type: 'image/png' });
         if (navigator.share && (navigator.canShare && navigator.canShare({ files: [file] }))) {
           navigator.share({ title: 'pra cima deles, renan!', text: payload.text, url: payload.url, files: [file] })
+            .then(() => { recordShare(); })
             .catch((err) => {
-              if (!err || err.name !== 'AbortError') downloadShareCard(blob, payload);
+              if (!err || err.name !== 'AbortError') {
+                downloadShareCard(blob, payload);
+                recordShare();
+              }
             });
         } else {
           downloadShareCard(blob, payload);
+          recordShare();
         }
       } catch (err) {
         // Fallback: compartilhamento só de texto (comportamento de antes)
         console.error('[share-card]', err);
         if (navigator.share && isMobileUA()) {
-          navigator.share(payload).catch(() => {});
+          navigator.share(payload).then(() => { recordShare(); }).catch(() => {});
         } else {
           copyShareToClipboard(payload.full);
+          recordShare();
         }
       }
+    }
+
+    const shareModal = document.getElementById('share-modal');
+    const shareModalClose = document.getElementById('share-modal-close');
+    const shareModalBody = shareModal ? shareModal.querySelector('.share-preview-body') : null;
+
+    function openShareModal() {
+      if (!shareModal) return;
+      buildSharePreview();
+      shareModal.classList.remove('hidden');
+      if (shareModalBody) shareModalBody.scrollTop = 0;
+    }
+
+    function closeShareModal() {
+      if (shareModal) shareModal.classList.add('hidden');
+    }
+
+    if (shareModalClose) {
+      shareModalClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        audio.playClick();
+        closeShareModal();
+      });
+    }
+    if (shareModal) {
+      shareModal.addEventListener('click', (e) => {
+        if (e.target === shareModal) closeShareModal();
+      });
+    }
+    // Impede que o toque dentro do modal "vaze" para a overlay de game over
+    if (shareModalBody) {
+      shareModalBody.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    // Botão COMPARTILHAR da barra de ações: abre a prévia (modal) sobre a tela final
+    btnShare.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openShareModal();
     });
+
+    const btnSharePreview = document.getElementById('btn-share-preview');
+    if (btnSharePreview) {
+      btnSharePreview.addEventListener('click', (e) => {
+        e.stopPropagation();
+        doShare();
+      });
+    }
+
+    // "Dossiê de Campanha" da prévia: fecha o modal e abre o glossário da tela final
+    const goShareDossier = document.getElementById('go-share-dossier');
+    if (goShareDossier) {
+      goShareDossier.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audio.playClick();
+        closeShareModal();
+        openGlossary();
+      });
+    }
+
+    // --- ESTATÍSTICAS VITAIS DA COMUNIDADE (jogadores, votos, compartilhamentos) ---
+    const COMMUNITY_STATS_CACHE_MS = 60000;
+    let communityStatsCache = null;
+    let communityStatsCachedAt = 0;
+
+    function statsBase() {
+      return LEADERBOARD_API_URL.replace(/\/leaderboard$/i, '');
+    }
+
+    function statsHeaders() {
+      return {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+      };
+    }
+
+    async function fetchCommunityStats() {
+      if (!LEADERBOARD_API_URL) return null;
+      const now = Date.now();
+      if (communityStatsCache && now - communityStatsCachedAt < COMMUNITY_STATS_CACHE_MS) return communityStatsCache;
+      const stats = { players: 0, votesTotal: 0, shares: 0 };
+      try {
+        const base = statsBase();
+        const headers = statsHeaders();
+        const [rCount, rVotes, rShares] = await Promise.all([
+          fetch(`${base}/leaderboard?select=count&limit=1`, { mode: 'cors', headers }),
+          fetch(`${base}/leaderboard?select=votes&limit=1000`, { mode: 'cors', headers }),
+          fetch(`${base}/shares?select=count&limit=1`, { mode: 'cors', headers })
+        ]);
+        if (rCount.ok) {
+          const d = await rCount.json().catch(() => null);
+          if (Array.isArray(d) && d[0]) stats.players = Number(d[0].count) || 0;
+        }
+        if (rVotes.ok) {
+          const d = await rVotes.json().catch(() => null);
+          if (Array.isArray(d)) stats.votesTotal = d.reduce((s, r) => s + (Number(r.votes) || 0), 0);
+        }
+        if (rShares.ok) {
+          const d = await rShares.json().catch(() => null);
+          if (Array.isArray(d) && d[0]) stats.shares = Number(d[0].count) || 0;
+        }
+        communityStatsCache = stats;
+        communityStatsCachedAt = now;
+      } catch (err) {
+        return null;
+      }
+      return stats;
+    }
+
+    function renderCommunityStats(stats) {
+      const sv = document.getElementById('start-stats-values');
+      if (sv) {
+        sv.textContent = stats
+          ? `${formatVotes(stats.players)} jogadores · ${formatVotes(stats.votesTotal)} votos · ${formatVotes(stats.shares)} compartilhamentos`
+          : 'sem conexão com a comunidade';
+      }
+      const vp = document.getElementById('vital-players');
+      const vv = document.getElementById('vital-votes');
+      const vs = document.getElementById('vital-shares');
+      if (vp) vp.textContent = stats ? formatVotes(stats.players) : '—';
+      if (vv) vv.textContent = stats ? formatVotes(stats.votesTotal) : '—';
+      if (vs) vs.textContent = stats ? formatVotes(stats.shares) : '—';
+    }
+
+    function refreshCommunityStats() {
+      fetchCommunityStats().then((stats) => renderCommunityStats(stats));
+    }
+
+    // Registra 1 compartilhamento (tabela `shares` no Supabase; senão, contador local)
+    function recordShare() {
+      if (LEADERBOARD_API_URL) {
+        fetch(`${statsBase()}/shares`, {
+          method: 'POST',
+          mode: 'cors',
+          headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, statsHeaders()),
+          body: '{}'
+        }).then((r) => { if (r.ok) communityStatsCachedAt = 0; }).catch(() => {});
+      } else {
+        try {
+          const k = 'renan_mission_shares';
+          localStorage.setItem(k, String((Number(localStorage.getItem(k)) || 0) + 1));
+        } catch (err) {}
+      }
+    }
 
     // --- RANKING COMUNITÁRIO ---
     function getLocalLeaderboard() {
@@ -5440,6 +5618,7 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
           });
           if (resp.ok) {
             lbSubmittedThisRun = true;
+            communityStatsCachedAt = 0; // próxima busca reflete o novo jogador/votos
             return { ok: true, message: 'Resultado registrado na comunidade!' };
           }
           return { ok: false, message: 'Falha ao registrar (servidor recusou).' };
@@ -5796,6 +5975,24 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       });
     }
 
+    // Links Sobre/Privacidade da tela final (mesmos modais da tela inicial)
+    document.querySelectorAll('.js-open-sobre').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audio.playClick();
+        openSobre();
+      });
+    });
+    document.querySelectorAll('.js-open-privacidade').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audio.playClick();
+        openPrivacidade();
+      });
+    });
+
     // --- RESPONSIVIDADE CANVAS (Ajuste nítido com DevicePixelRatio) ---
     function resizeCanvas() {
       const wrapper = document.getElementById('game-wrapper');
@@ -5891,6 +6088,8 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       window.addEventListener('touchend', firstGestureUnlock);
       window.addEventListener('keydown', firstGestureUnlock);
       window.addEventListener('click', firstGestureUnlock);
+
+    refreshCommunityStats();
 
     // Iniciação
     resizeCanvas();
