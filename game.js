@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.16';
+    const GAME_VERSION = '0.1.17';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -4924,6 +4924,10 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     function playMenuIntro() {
       overlayStart.classList.remove('reveal-done');
       menuIntroDone = false;
+      // O menu acabou de abrir: a intro fica na fila até o AudioContext rodar
+      // (armada de novo em toda abertura de menu, nunca em qualquer toque solto).
+      introNeedsStart = true;
+      armMenuIntro();
       // Re-dispara o crescimento do quadro. No load a @keyframes CSS roda UMA vez e
       // não reinicia (o iOS não repete com estilo inline); o WAAPI cancela a execução
       // em andamento e reproduz determinísticamente (fill:both mantém o estado final).
@@ -5874,17 +5878,19 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
         // purga o nó de música que foi criado em silêncio no load (pré-gesto).
         realAudio.unlock();
         audio.init();
-        if (realAudio.enabled && gameState !== STATE.PLAYING) {
-          introNeedsStart = true;
-          voiceNeedsPlay = true;
-          armMenuIntro();
-        }
+        // iPhone/iPad modernos só tratam como gesto de áudio CLICK e TOUCHEND
+        // (pointerdown/touchstart são ignorados): por isso este handler escuta os
+        // quatro eventos do toque. O retry de 250ms dispara a intro assim que o
+        // resume desses eventos termina.
         if (audioUnlockedByGesture) return;
         audioUnlockedByGesture = true;
+        if (realAudio.enabled && gameState !== STATE.PLAYING) voiceNeedsPlay = true;
       }
       window.addEventListener('pointerdown', firstGestureUnlock);
-      window.addEventListener('keydown', firstGestureUnlock);
       window.addEventListener('touchstart', firstGestureUnlock);
+      window.addEventListener('touchend', firstGestureUnlock);
+      window.addEventListener('keydown', firstGestureUnlock);
+      window.addEventListener('click', firstGestureUnlock);
 
     // Iniciação
     resizeCanvas();
