@@ -1,11 +1,11 @@
-
+﻿
     /**
      * PRA CIMA DELES, RENAN! — PROTÓTIPO PLATAFORMA
      * Loop Core: Corrida contínua, pulo variável, fast-fall e colocação de fraldas em púlpitos vazios.
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.14';
+    const GAME_VERSION = '0.1.15';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -623,10 +623,15 @@
     let lastRunWasNewRecord = false;
     let isPaused = false;
 
-    // --- LEADERBOARD COMUNITÁRIO (backend plugável) ---
-    // API (opcional): GET {url}?top=10 -> { entries: [{ nick, votes }] } | [ { nick, votes } ]
-    //                  POST {url} (body {nick, votes}) -> 200/201. Sem URL, usa registro local.
-    const LEADERBOARD_API_URL = '';
+    // --- LEADERBOARD COMUNITÁRIO (Supabase REST, opcional) ---
+    // GET  /rest/v1/leaderboard?select=nick,votes&order=votes.desc,created_at.asc&limit=N
+    // POST /rest/v1/leaderboard (body {nick, votes}) com headers apikey/Authorization.
+    // Sem URL configurada (ou sem as chaves), usa o registro local.
+    const SUPABASE_URL = 'https://lrhywlvowkwvhlxuifyi.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_YlSRMuB78imVblVe9ZyiQg_zjtylMUs';
+    const LEADERBOARD_API_URL = SUPABASE_URL
+      ? SUPABASE_URL.replace(/\/rest\/v1$/i, '').replace(/\/+$/, '') + '/rest/v1/leaderboard'
+      : '';
     const LB_STORAGE_KEY = 'renan_mission_lb';
     let lbSubmittedThisRun = false;
     let lastLbNick = '';
@@ -4922,6 +4927,15 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     function playMenuIntro() {
       overlayStart.classList.remove('reveal-done');
       menuIntroDone = false;
+      // Re-dispara o crescimento do quadro: a @keyframes startArtGrow roda uma vez
+      // no load (atrás da splash, que cobre tudo no mobile). Sem este restart, ao
+      // dispensar a splash o menu aparecia com o quadro já "crescido" e sem animação.
+      const art = document.querySelector('.start-art-container');
+      if (art) {
+        art.style.animation = 'none';
+        void art.offsetWidth; // força reflow para o reinício valer
+        art.style.animation = '';
+      }
       clearTimeout(menuIntroTimer);
       menuIntroTimer = setTimeout(() => {
         menuIntroDone = true;
@@ -5374,8 +5388,16 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     async function fetchLeaderboard(top = 10) {
       if (LEADERBOARD_API_URL) {
         try {
-          const sep = LEADERBOARD_API_URL.includes('?') ? '&' : '?';
-          const resp = await fetch(`${LEADERBOARD_API_URL}${sep}top=${top}`, { mode: 'cors' });
+          const resp = await fetch(
+            `${LEADERBOARD_API_URL}?select=nick,votes&order=votes.desc,created_at.asc&limit=${top}`,
+            {
+              mode: 'cors',
+              headers: {
+                apikey: SUPABASE_PUBLISHABLE_KEY,
+                Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+              }
+            }
+          );
           if (resp.ok) {
             const data = await resp.json();
             const entries = Array.isArray(data) ? data : (data && data.entries);
@@ -5399,7 +5421,12 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
           const resp = await fetch(LEADERBOARD_API_URL, {
             method: 'POST',
             mode: 'cors',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+              Prefer: 'return=minimal'
+            },
             body: JSON.stringify(entry)
           });
           if (resp.ok) {
