@@ -5,7 +5,7 @@
      */
 
     // Versão SemVer do jogo (major.minor.patch) — bump via `node bump-version.js [major|minor|patch]`
-    const GAME_VERSION = '0.1.15';
+    const GAME_VERSION = '0.1.16';
 
     // --- ÁUDIO (Web Audio API Synthesizer) ---
     class SoundEngine {
@@ -408,17 +408,14 @@
         if (!this._ensureCtx()) return;
         if (this.ctx.state !== 'suspended') return;
         // Ctx suspenso (pré-gesto ou 1ª tentativa rejeitada): remove faixas criadas
-        // em silêncio e re-dispara a música quando o resume resolver — a recriação
-        // roda com o AudioContext JÁ tocando (nó criado suspenso não reproduz no iOS).
+        // em silêncio (nó criado suspenso não reproduz no iOS) e pede o resume.
+        // Quem re-cria a música é o retry do menu (com o ctx JÁ 'running'), nunca um
+        // .then() de microtask — isso foi a causa raiz do mudo no 1º gesto.
         this._purgeBgmNodes();
         this._bgmNode = null;
         try {
           const p = this.ctx.resume();
-          if (p && typeof p.then === 'function') {
-            p.then(() => {
-              if (this.bgmKind && !this._bgmNode) this.setBgm(this.bgmKind);
-            }).catch(() => {});
-          }
+          if (p && typeof p.catch === 'function') p.catch(() => {});
         } catch (err) {}
       }
 
@@ -4922,19 +4919,27 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
     // Animação de entrada da tela inicial: o quadro do Renan cresce (CSS) e, ao
     // terminar, libera o fade-in de textos/botão e o toque/tecla para iniciar.
     // A música 'start' já dispara no load — a animação roda junto desde o início.
-    const MENU_INTRO_MS = 2250; // deve casar com startArtGrow (styles.css)
+    const MENU_INTRO_MS = 2250; // duração da entrada (WAAPI) e do timeout de revelar o menu
     let menuIntroTimer = null;
     function playMenuIntro() {
       overlayStart.classList.remove('reveal-done');
       menuIntroDone = false;
-      // Re-dispara o crescimento do quadro: a @keyframes startArtGrow roda uma vez
-      // no load (atrás da splash, que cobre tudo no mobile). Sem este restart, ao
-      // dispensar a splash o menu aparecia com o quadro já "crescido" e sem animação.
+      // Re-dispara o crescimento do quadro. No load a @keyframes CSS roda UMA vez e
+      // não reinicia (o iOS não repete com estilo inline); o WAAPI cancela a execução
+      // em andamento e reproduz determinísticamente (fill:both mantém o estado final).
       const art = document.querySelector('.start-art-container');
-      if (art) {
-        art.style.animation = 'none';
-        void art.offsetWidth; // força reflow para o reinício valer
-        art.style.animation = '';
+      if (art && typeof art.animate === 'function') {
+        art.getAnimations().forEach((a) => { try { a.cancel(); } catch (err) {} });
+        try {
+          art.animate(
+            [
+              { transform: 'scale(0.05)', opacity: 0 },
+              { transform: 'scale(0.05)', opacity: 1, offset: 0.1 },
+              { transform: 'scale(1)', opacity: 1 }
+            ],
+            { duration: MENU_INTRO_MS, easing: 'cubic-bezier(0.2, 0.9, 0.25, 1.1)', fill: 'both' }
+          );
+        } catch (err) {}
       }
       clearTimeout(menuIntroTimer);
       menuIntroTimer = setTimeout(() => {
@@ -5108,7 +5113,6 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       e.stopPropagation();
       audio.playClick();
       audio.init();
-      realAudio.unlock();
       gameState = STATE.MENU;
       isPaused = false;
       syncPauseUi();
@@ -5116,11 +5120,12 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       overlayGameOver.classList.add('hidden');
       overlayStart.classList.remove('hidden');
       resetWorld();
+      introNeedsStart = true;
+      armMenuIntro();
       playMenuIntro();
       lbSubmittedThisRun = false;
       const lbSubmitBtn = document.getElementById('lb-submit');
       if (lbSubmitBtn) lbSubmitBtn.disabled = false;
-      if (audio.enabled) realAudio.setBgm('start');
     });
 
     // --- COMPARTILHAMENTO ---
@@ -5836,17 +5841,46 @@ spawnParticles(p.x + p.w / 2, p.y + 4, '#ffffff', 14);
       // rejeita o 1º) e garante a intro na tela inicial. A voz do Renan só toca
       // uma vez, na primeira interação. O jogo em andamento não é afetado.
       let audioUnlockedByGesture = false;
+      // A intro/menu só pode soar quando o ctx está 'running' (nó criado com o ctx
+      // suspenso não emite no iOS). Em vez de re-criar num .then() de microtask,
+      // marcamos a pendência e um retry curto dispara assim que o ctx rodar — por
+      // isso o "gesto" do splash cobre o caso do resume terminar um tique depois.
+      let introNeedsStart = false;
+      let voiceNeedsPlay = false;
+      function armMenuIntro() {
+        if (!introNeedsStart || !realAudio.enabled) return;
+        realAudio.unlock();
+        if (realAudio.ctx && realAudio.ctx.state === 'running' && !realAudio._bgmNode) {
+          realAudio.setBgm('start'); // cria o nó sincronamente, no próprio gesto
+          introNeedsStart = false;
+        }
+      }
+      setInterval(() => {
+        if (!realAudio.enabled || gameState !== STATE.MENU) return;
+        if (introNeedsStart) {
+          if (!realAudio.ctx || realAudio.ctx.state !== 'running') return;
+          if (realAudio._bgmNode) { introNeedsStart = false; return; }
+          realAudio.setBgm('start');
+          introNeedsStart = false;
+        }
+        if (voiceNeedsPlay) {
+          if (!realAudio.ctx || realAudio.ctx.state !== 'running') return;
+          voiceNeedsPlay = false;
+          realAudio.playOne('renan_voice', 1.0);
+        }
+      }, 250);
       function firstGestureUnlock() {
         // unlock ANTES do audio.init(): se o ctx ainda estiver suspenso, o unlock
         // purga o nó de música que foi criado em silêncio no load (pré-gesto).
         realAudio.unlock();
         audio.init();
+        if (realAudio.enabled && gameState !== STATE.PLAYING) {
+          introNeedsStart = true;
+          voiceNeedsPlay = true;
+          armMenuIntro();
+        }
         if (audioUnlockedByGesture) return;
         audioUnlockedByGesture = true;
-        if (realAudio.enabled && gameState !== STATE.PLAYING) {
-          realAudio.setBgm('start');
-          realAudio.playOne('renan_voice', 1.0);
-        }
       }
       window.addEventListener('pointerdown', firstGestureUnlock);
       window.addEventListener('keydown', firstGestureUnlock);
